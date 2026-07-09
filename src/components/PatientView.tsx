@@ -11,6 +11,7 @@ type Patient = {
   nextAppointment: string
   lastOLeary: number
   periodontalRisk: RiskLevel
+  notes: string
   generalData: {
     sex: string
     phone: string
@@ -24,9 +25,115 @@ type PatientViewProps = {
   patients: Patient[]
   selectedPatientId: string
   onSelectPatient: (id: string) => void
+  onOpenControl: () => void
 }
 
-function PatientView({ patients, selectedPatientId, onSelectPatient }: PatientViewProps) {
+type ClinicalCard = {
+  title: string
+  description: string
+  status: string
+  statusClass: 'updated' | 'pending' | 'ready'
+  actionLabel: string
+  actionVariant: 'primary' | 'secondary'
+}
+
+type TimelineEvent = {
+  title: string
+  date: string
+  description: string
+}
+
+const clinicalCards: ClinicalCard[] = [
+  {
+    title: 'Control de Placa',
+    description: 'Registro activo de superficies con biofilm y seguimiento del O’Leary.',
+    status: 'Actualizado',
+    statusClass: 'updated',
+    actionLabel: 'Abrir registro',
+    actionVariant: 'primary',
+  },
+  {
+    title: 'Periodontograma',
+    description: 'Mapa clínico del estado periodontal y evolución de la encía.',
+    status: 'En revisión',
+    statusClass: 'pending',
+    actionLabel: 'Ver detalle',
+    actionVariant: 'secondary',
+  },
+  {
+    title: 'Fotografías Clínicas',
+    description: 'Comparativa visual de tejidos y respuesta terapéutica.',
+    status: 'Listo',
+    statusClass: 'ready',
+    actionLabel: 'Abrir galería',
+    actionVariant: 'secondary',
+  },
+  {
+    title: 'Implantes',
+    description: 'Plan de mantenimiento y estado de restauraciones implantológicas.',
+    status: 'Sin alertas',
+    statusClass: 'ready',
+    actionLabel: 'Revisar',
+    actionVariant: 'secondary',
+  },
+  {
+    title: 'Reportes',
+    description: 'Resumen ejecutivo para integración con el plan de seguimiento.',
+    status: 'Preparado',
+    statusClass: 'ready',
+    actionLabel: 'Exportar',
+    actionVariant: 'secondary',
+  },
+  {
+    title: 'Notas',
+    description: 'Observaciones breves del profesional para continuidad de atención.',
+    status: 'Actualizado',
+    statusClass: 'updated',
+    actionLabel: 'Editar',
+    actionVariant: 'secondary',
+  },
+  {
+    title: 'Documentos',
+    description: 'Consentimientos, diagnósticos y protocolos adjuntos al expediente.',
+    status: 'Completos',
+    statusClass: 'ready',
+    actionLabel: 'Ver archivos',
+    actionVariant: 'secondary',
+  },
+  {
+    title: 'IA Clínica',
+    description: 'Asistente para resúmenes, diferencias clínicas y recomendaciones.',
+    status: 'Próximamente',
+    statusClass: 'pending',
+    actionLabel: 'Activar',
+    actionVariant: 'secondary',
+  },
+]
+
+const timelineEvents: TimelineEvent[] = [
+  {
+    title: 'Control de placa realizado',
+    date: '12 jun 2026',
+    description: 'Evaluación completa de superficies con porcentaje de biofilm actualizado.',
+  },
+  {
+    title: 'Mantenimiento periodontal',
+    date: '03 jun 2026',
+    description: 'Revisión de encías y reforzamiento de higiene en domicilio.',
+  },
+  {
+    title: 'Fotografía clínica agregada',
+    date: '28 may 2026',
+    description: 'Registro visual de tejido blando para comparación de evolución.',
+  },
+  {
+    title: 'Próxima revisión programada',
+    date: '18 jul 2026',
+    description: 'Se recomienda revisión de control y actualización de plan de cuidado.',
+  },
+]
+
+function PatientView({ patients, selectedPatientId, onSelectPatient, onOpenControl }: PatientViewProps) {
   const [search, setSearch] = useState('')
 
   const filteredPatients = useMemo(() => {
@@ -49,6 +156,15 @@ function PatientView({ patients, selectedPatientId, onSelectPatient }: PatientVi
     filteredPatients.find((patient) => patient.id === selectedPatientId) ??
     patients.find((patient) => patient.id === selectedPatientId) ??
     patients[0]
+
+  const initials = activePatient
+    ? activePatient.name
+        .split(' ')
+        .map((part) => part[0])
+        .join('')
+        .slice(0, 2)
+        .toUpperCase()
+    : 'PC'
 
   return (
     <section className="patients-view">
@@ -122,7 +238,7 @@ function PatientView({ patients, selectedPatientId, onSelectPatient }: PatientVi
             <>
               <div className="patient-detail-header">
                 <div>
-                  <p className="eyebrow">Detalle del paciente</p>
+                  <p className="eyebrow">Centro clínico del paciente</p>
                   <h3>{activePatient.name}</h3>
                 </div>
                 <span className={`risk-pill ${activePatient.periodontalRisk.toLowerCase()}`}>
@@ -130,27 +246,33 @@ function PatientView({ patients, selectedPatientId, onSelectPatient }: PatientVi
                 </span>
               </div>
 
-              <section className="patient-clinic-center">
-                <h4>Centro clínico del paciente</h4>
-                <div className="clinic-grid">
+              <section className="patient-profile-card">
+                <div className="patient-profile-main">
+                  <div className="profile-avatar" aria-label={`Avatar de ${activePatient.name}`}>
+                    {initials}
+                  </div>
+                  <div>
+                    <h4>{activePatient.name}</h4>
+                    <p>{activePatient.diagnosis}</p>
+                    <div className="profile-tags">
+                      <span>{activePatient.age} años</span>
+                      <span>{activePatient.generalData.sex}</span>
+                      <span>{activePatient.generalData.insurance}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="profile-overview-grid">
                   <div className="summary-item">
-                    <span>Nombre</span>
-                    <strong>{activePatient.name}</strong>
+                    <span>Teléfono</span>
+                    <strong>{activePatient.generalData.phone}</strong>
                   </div>
                   <div className="summary-item">
-                    <span>Edad</span>
-                    <strong>{activePatient.age} años</strong>
+                    <span>Correo</span>
+                    <strong>{activePatient.generalData.email}</strong>
                   </div>
                   <div className="summary-item">
-                    <span>Diagnóstico</span>
-                    <strong>{activePatient.diagnosis}</strong>
-                  </div>
-                  <div className="summary-item">
-                    <span>Riesgo periodontal</span>
-                    <strong>{activePatient.periodontalRisk}</strong>
-                  </div>
-                  <div className="summary-item">
-                    <span>Último O’Leary</span>
+                    <span>Control de placa</span>
                     <strong>{activePatient.lastOLeary}%</strong>
                   </div>
                   <div className="summary-item">
@@ -160,80 +282,70 @@ function PatientView({ patients, selectedPatientId, onSelectPatient }: PatientVi
                 </div>
               </section>
 
-              <div className="detail-summary">
-                <div className="summary-item">
-                  <span>Edad</span>
-                  <strong>{activePatient.age} años</strong>
-                </div>
-                <div className="summary-item">
-                  <span>Diagnóstico</span>
-                  <strong>{activePatient.diagnosis}</strong>
-                </div>
-                <div className="summary-item">
-                  <span>Próxima cita</span>
-                  <strong>{activePatient.nextAppointment}</strong>
-                </div>
-              </div>
+              <section className="clinical-cards-grid" aria-label="Módulos clínicos del expediente">
+                {clinicalCards.map((card) => (
+                  <article key={card.title} className="clinical-card">
+                    <div className="clinical-card-top">
+                      <div>
+                        <h4>{card.title}</h4>
+                        <p>{card.description}</p>
+                      </div>
+                      <span className={`status-pill ${card.statusClass}`}>{card.status}</span>
+                    </div>
+                    <div className="clinical-card-footer">
+                      <button type="button" className={`action-btn ${card.actionVariant}`}>
+                        {card.actionLabel}
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </section>
 
-              <div className="detail-section">
-                <h4>Datos generales</h4>
-                <div className="detail-grid">
+              <section className="timeline-panel">
+                <div className="panel-header">
                   <div>
-                    <span>Sexo</span>
-                    <strong>{activePatient.generalData.sex}</strong>
+                    <p className="eyebrow">Línea de tiempo</p>
+                    <h4>Eventos clínicos</h4>
                   </div>
+                  <span className="pill">Ficticio</span>
+                </div>
+                <ul className="timeline-list">
+                  {timelineEvents.map((event) => (
+                    <li key={event.title} className="timeline-item">
+                      <span className="timeline-marker" aria-hidden="true" />
+                      <div className="timeline-content">
+                        <div className="timeline-top">
+                          <strong>{event.title}</strong>
+                          <span>{event.date}</span>
+                        </div>
+                        <p>{event.description}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+
+              <section className="notes-panel">
+                <div className="panel-header">
                   <div>
-                    <span>Teléfono</span>
-                    <strong>{activePatient.generalData.phone}</strong>
-                  </div>
-                  <div>
-                    <span>Correo</span>
-                    <strong>{activePatient.generalData.email}</strong>
-                  </div>
-                  <div>
-                    <span>Seguro</span>
-                    <strong>{activePatient.generalData.insurance}</strong>
+                    <p className="eyebrow">Notas clínicas</p>
+                    <h4>Resumen breve</h4>
                   </div>
                 </div>
-              </div>
-
-              <div className="detail-section">
-                <h4>Último porcentaje O’Leary</h4>
-                <div className="olleary-card">
-                  <div className="olleary-value">{activePatient.lastOLeary}%</div>
-                  <div className="meter-bar" aria-hidden="true">
-                    <span style={{ width: `${Math.min(activePatient.lastOLeary, 100)}%` }} />
-                  </div>
-                </div>
-              </div>
-
-              <div className="detail-section">
-                <h4>Riesgo periodontal</h4>
-                <p className="detail-copy">
-                  {activePatient.periodontalRisk === 'Bajo' && 'Control estable y evolución favorable.'}
-                  {activePatient.periodontalRisk === 'Moderado' && 'Requiere seguimiento próximo para reforzar la higiene.'}
-                  {activePatient.periodontalRisk === 'Alto' && 'Prioridad de intervención y control intensivo.'}
-                </p>
-              </div>
-
-              <div className="detail-section">
-                <h4>Historial breve</h4>
+                <p className="notes-copy">{activePatient.notes}</p>
                 <ul className="history-list">
                   {activePatient.history.map((item) => (
                     <li key={item}>{item}</li>
                   ))}
                 </ul>
-              </div>
+              </section>
 
               <div className="detail-actions">
-                <button type="button" className="primary-btn">
+                <button type="button" className="primary-btn" onClick={onOpenControl}>
                   Nuevo control de placa
                 </button>
                 <button type="button" className="ghost-btn">
-                  Ver expediente
-                </button>
-                <button type="button" className="ghost-btn">
-                  Editar
+                  Ver periodontograma
                 </button>
               </div>
             </>

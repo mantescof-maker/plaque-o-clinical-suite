@@ -411,6 +411,10 @@ button {
   padding: 12px;
 }
 
+.summary-item-wide {
+  grid-column: 1 / -1;
+}
+
 .summary-item p {
   margin: 0 0 5px;
   color: #5d7377;
@@ -419,6 +423,24 @@ button {
 
 .summary-item strong {
   color: #18312b;
+}
+
+.patient-section-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.patient-section-title h3 {
+  margin: 0;
+  color: #18312b;
+}
+
+.detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .clinical-cards-grid {
@@ -443,6 +465,34 @@ button {
 }
 
 .clinical-card p {
+  margin: 0;
+  color: #5d7377;
+  line-height: 1.45;
+}
+
+.timeline-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 0;
+  border-bottom: 1px solid #e8eff1;
+}
+
+.timeline-entry:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.timeline-entry strong {
+  color: #18312b;
+}
+
+.timeline-entry span {
+  color: #2f9e6d;
+  font-weight: 700;
+}
+
+.timeline-entry p {
   margin: 0;
   color: #5d7377;
 }

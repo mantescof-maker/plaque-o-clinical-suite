@@ -128,6 +128,24 @@ const navItems: Array<{ label: string; view: View }> = [
   { label: 'Configuración', view: 'placeholder' },
 ]
 
+const clinicalCards = [
+  { title: 'Control de Placa', description: 'Seguimiento de placa y protocolos de higiene.', status: 'Actualizado', accent: 'updated' },
+  { title: 'Periodontograma', description: 'Mapa periodontal actualizado con hallazgos clínicos.', status: 'Pendiente', accent: 'pending' },
+  { title: 'Fotografías Clínicas', description: 'Registros visuales de evolución del caso.', status: 'Listo', accent: 'ready' },
+  { title: 'Implantes', description: 'Monitoreo de prótesis y estabilidad clínica.', status: 'Actualizado', accent: 'updated' },
+  { title: 'Reportes', description: 'Resumen de sesiones y seguimiento del tratamiento.', status: 'En revisión', accent: 'ready' },
+  { title: 'Notas', description: 'Observaciones clínicas breves y plan de acción.', status: 'Actualizado', accent: 'updated' },
+  { title: 'Documentos', description: 'Consentimientos y documentos adjuntos del paciente.', status: 'Listo', accent: 'ready' },
+  { title: 'IA Clínica', description: 'Recomendaciones asistidas para la próxima visita.', status: 'Disponible', accent: 'pending' },
+]
+
+const timelineEvents = [
+  { title: 'Control de placa realizado', date: '09 Jul 2026', description: 'Evaluación de biofilm con mejora clínica observable.' },
+  { title: 'Mantenimiento periodontal', date: '04 Jul 2026', description: 'Limpieza profesional y reforzamiento de higiene oral.' },
+  { title: 'Fotografía clínica agregada', date: '01 Jul 2026', description: 'Registro visual de la evolución del caso.' },
+  { title: 'Próxima revisión programada', date: '16 Jul 2026', description: 'Cita prevista para seguimiento y ajuste terapéutico.' },
+]
+
 function App() {
   const [activeView, setActiveView] = useState<View>('dashboard')
   const [selectedPatientId, setSelectedPatientId] = useState(patientsData[0].id)
@@ -376,11 +394,23 @@ function App() {
                       <p>{selectedPatient.age} años · {selectedPatient.sex}</p>
                     </div>
                   </div>
+                  <div className="patient-section-title">
+                    <h3>Centro Clínico del Paciente</h3>
+                    <span className="badge">Activo</span>
+                  </div>
                   <div className="profile-tags">
                     <span>{selectedPatient.phone}</span>
                     <span>{selectedPatient.email}</span>
                   </div>
                   <div className="profile-overview-grid">
+                    <div className="summary-item">
+                      <p>Edad</p>
+                      <strong>{selectedPatient.age} años</strong>
+                    </div>
+                    <div className="summary-item">
+                      <p>Sexo</p>
+                      <strong>{selectedPatient.sex}</strong>
+                    </div>
                     <div className="summary-item">
                       <p>Diagnóstico periodontal</p>
                       <strong>{selectedPatient.diagnosis}</strong>
@@ -390,28 +420,27 @@ function App() {
                       <strong>{selectedPatient.risk}</strong>
                     </div>
                     <div className="summary-item">
-                      <p>Último porcentaje</p>
+                      <p>Último porcentaje de Control de Placa</p>
                       <strong>{selectedPatient.plaque}%</strong>
                     </div>
                     <div className="summary-item">
                       <p>Próxima cita</p>
                       <strong>{selectedPatient.nextVisit}</strong>
                     </div>
+                    <div className="summary-item summary-item-wide">
+                      <p>Notas clínicas breves</p>
+                      <strong>{selectedPatient.notes}</strong>
+                    </div>
                   </div>
                 </article>
 
                 <div className="clinical-cards-grid">
-                  {[
-                    { title: 'Control de Placa', status: 'Actualizado', accent: 'updated' },
-                    { title: 'Periodontograma', status: 'Pendiente', accent: 'pending' },
-                    { title: 'Fotografías Clínicas', status: 'Listo', accent: 'ready' },
-                    { title: 'Implantes', status: 'Actualizado', accent: 'updated' },
-                  ].map((card) => (
+                  {clinicalCards.map((card) => (
                     <article key={card.title} className="clinical-card">
                       <div className="clinical-card-top">
                         <div>
                           <h4>{card.title}</h4>
-                          <p>Registro clínico visible y listo para revisión.</p>
+                          <p>{card.description}</p>
                         </div>
                         <span className={`status-pill ${card.accent}`}>{card.status}</span>
                       </div>
@@ -429,9 +458,13 @@ function App() {
                       <span className="badge">Reciente</span>
                     </div>
                     <ul className="timeline-list">
-                      <li><strong>Jun 30</strong> Revisión de biofilm y ajuste de higiene.</li>
-                      <li><strong>Jul 04</strong> Control de placa con mejora del 14%.</li>
-                      <li><strong>Jul 09</strong> Seguimiento con nueva valoración diagnóstica.</li>
+                      {timelineEvents.map((event) => (
+                        <li key={event.title} className="timeline-entry">
+                          <strong>{event.date}</strong>
+                          <span>{event.title}</span>
+                          <p>{event.description}</p>
+                        </li>
+                      ))}
                     </ul>
                   </article>
                   <article className="panel-card">

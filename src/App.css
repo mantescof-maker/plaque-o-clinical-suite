@@ -680,17 +680,19 @@ button {
   background: #7a8790;
 }
 
-.odontogram-grid {
+.quadrants-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  gap: 24px;
+  width: 100%;
 }
 
-.odontogram-quadrant {
-  padding: 14px;
-  border-radius: 18px;
-  background: #ffffff;
-  border: 1px solid #dce8eb;
+.quadrant-card {
+  border: 1px solid rgba(15, 61, 55, 0.12);
+  border-radius: 24px;
+  padding: 22px;
+  background: rgba(255, 255, 255, 0.86);
+  overflow: visible;
 }
 
 .quadrant-title-row {
@@ -703,75 +705,50 @@ button {
   font-size: 0.95rem;
 }
 
-.quadrant-tooths {
+.quadrant-teeth {
   display: grid;
-  grid-template-columns: repeat(4, minmax(96px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
+  gap: 18px;
+  align-items: center;
+  justify-items: center;
+  overflow: visible;
 }
 
 .tooth-card {
-  min-width: 96px;
-  min-height: 96px;
-  border-radius: 18px;
-  border: 1px solid #e2ebee;
-  padding: 12px 10px;
-  background: linear-gradient(135deg, #fcfefe 0%, #f5fbfc 100%);
-  box-shadow: 0 10px 24px rgba(17, 49, 55, 0.04);
+  width: 120px;
+  height: 120px;
+  min-width: 120px;
+  min-height: 120px;
   display: grid;
-  grid-template-columns: minmax(32px, 1fr) 44px minmax(32px, 1fr);
-  grid-template-rows: minmax(28px, auto) 44px minmax(28px, auto);
+  grid-template-columns: 34px 48px 34px;
+  grid-template-rows: 32px 48px 32px;
   grid-template-areas:
     ". v ."
     "m number d"
     ". lp .";
-  gap: 6px;
   align-items: center;
   justify-items: center;
-}
-
-.tooth-number {
-  display: grid;
-  place-items: center;
-  font-weight: 700;
-  color: #18312b;
-  background: #f8fcfd;
-  border: 1px solid #dbe8eb;
-  border-radius: 12px;
-  font-size: 0.95rem;
-  min-width: 48px;
-  min-height: 48px;
-  grid-area: number;
+  padding: 10px;
+  border: 1px solid rgba(15, 61, 55, 0.14);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 14px 30px rgba(15, 61, 55, 0.08);
+  overflow: visible;
 }
 
 .surface-button {
-  border: 2px solid #dce8eb;
-  border-radius: 10px;
-  padding: 8px 6px;
-  font-size: 0.75rem;
-  font-weight: 700;
+  width: 34px;
+  height: 28px;
+  border: 0;
+  border-radius: 999px;
   color: #ffffff;
-  background: #2f9e6d;
-  border-color: #2f9e6d;
-  min-height: 28px;
-  min-width: 32px;
-}
-
-.surface-button.clean {
-  background: #2f9e6d;
-  color: #ffffff;
-  border-color: #2f9e6d;
-}
-
-.surface-button.plaque {
-  background: #d14f3d;
-  color: #ffffff;
-  border-color: #d14f3d;
-}
-
-.surface-button.excluded {
-  background: #7a8790;
-  color: #ffffff;
-  border-color: #7a8790;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
 }
 
 .surface-v {
@@ -788,6 +765,34 @@ button {
 
 .surface-lp {
   grid-area: lp;
+  width: 42px;
+}
+
+.tooth-number {
+  grid-area: number;
+  width: 44px;
+  height: 44px;
+  border-radius: 16px;
+  background: #f4faf8;
+  color: #102a27;
+  border: 1px solid rgba(15, 61, 55, 0.18);
+  font-size: 17px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.surface-clean {
+  background: #159b78;
+}
+
+.surface-plaque {
+  background: #c94a44;
+}
+
+.surface-excluded {
+  background: #7b8794;
 }
 
 .summary-card p {
@@ -852,7 +857,7 @@ button {
     grid-template-columns: 1fr;
   }
 
-  .odontogram-grid {
+  .quadrants-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -880,12 +885,12 @@ button {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .odontogram-grid {
+  .quadrants-grid {
     grid-template-columns: 1fr;
   }
 
-  .quadrant-tooths {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .quadrant-teeth {
+    grid-template-columns: repeat(2, minmax(120px, 1fr));
   }
 }
 
@@ -961,90 +966,6 @@ button {
 }
 
 .legend-dot.excluded {
-  background: #5c7277;
-}
-
-.tooth-grid {
-  display: grid;
-  grid-template-columns: repeat(8, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.tooth-card {
-  padding: 10px;
-  border-radius: 14px;
-  background: #f8fcfd;
-  border: 1px solid #e2ebef;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.tooth-illustration {
-  position: relative;
-  width: 72px;
-  height: 72px;
-  border-radius: 18px;
-  background: linear-gradient(135deg, #ecf7f8, #f8fcfd);
-  border: 1px solid #dce8eb;
-}
-
-.tooth-center {
-  position: absolute;
-  inset: 50% auto auto 50%;
-  transform: translate(-50%, -50%);
-  font-weight: 700;
-  color: #147a8f;
-  font-size: 0.9rem;
-  z-index: 2;
-}
-
-.surface-btn {
-  position: absolute;
-  border: 0;
-  border-radius: 999px;
-  width: 24px;
-  height: 24px;
-  font-size: 0.6rem;
-  font-weight: 700;
-  color: #fff;
-  cursor: pointer;
-  z-index: 3;
-}
-
-.surface-btn.top {
-  top: 4px;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.surface-btn.bottom {
-  bottom: 4px;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.surface-btn.left {
-  left: 4px;
-  top: 50%;
-  transform: translateY(-50%);
-}
-
-.surface-btn.right {
-  right: 4px;
-  top: 50%;
-  transform: translateY(-50%);
-}
-
-.surface-btn.clean {
-  background: #2f9e6d;
-}
-
-.surface-btn.plaque {
-  background: #d6634d;
-}
-
-.surface-btn.excluded {
   background: #5c7277;
 }
 

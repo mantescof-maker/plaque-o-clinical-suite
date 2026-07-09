@@ -39,7 +39,7 @@ interface ToothCardProps {
     D: SurfaceStatus
     LP: SurfaceStatus
   }
-  onSurfaceClick: (surface: 'V' | 'M' | 'D' | 'LP') => void
+  onSurfaceClick: (tooth: string, surface: 'V' | 'M' | 'D' | 'LP') => void
 }
 
 interface ErrorBoundaryState {
@@ -179,14 +179,30 @@ const controlQuadrants = [
   { title: 'Inferior izquierdo', teeth: ['31', '32', '33', '34', '35', '36', '37', '38'] },
 ]
 
+const getSurfaceClass = (surface: SurfaceStatus): 'surface-clean' | 'surface-plaque' | 'surface-excluded' => {
+  if (surface === 'plaque') {
+    return 'surface-plaque'
+  }
+
+  if (surface === 'excluded') {
+    return 'surface-excluded'
+  }
+
+  return 'surface-clean'
+}
+
 function ToothCard({ tooth, surfaces, onSurfaceClick }: ToothCardProps) {
   return (
     <div className="tooth-card">
-      <button type="button" className={`surface-button surface-v ${surfaces.V}`} onClick={() => onSurfaceClick('V')}>V</button>
-      <button type="button" className={`surface-button surface-m ${surfaces.M}`} onClick={() => onSurfaceClick('M')}>M</button>
+      <button type="button" className={`surface-button surface-v ${getSurfaceClass(surfaces.V)}`} onClick={() => onSurfaceClick(tooth, 'V')}>V</button>
+
+      <button type="button" className={`surface-button surface-m ${getSurfaceClass(surfaces.M)}`} onClick={() => onSurfaceClick(tooth, 'M')}>M</button>
+
       <div className="tooth-number">{tooth}</div>
-      <button type="button" className={`surface-button surface-d ${surfaces.D}`} onClick={() => onSurfaceClick('D')}>D</button>
-      <button type="button" className={`surface-button surface-lp ${surfaces.LP}`} onClick={() => onSurfaceClick('LP')}>L/P</button>
+
+      <button type="button" className={`surface-button surface-d ${getSurfaceClass(surfaces.D)}`} onClick={() => onSurfaceClick(tooth, 'D')}>D</button>
+
+      <button type="button" className={`surface-button surface-lp ${getSurfaceClass(surfaces.LP)}`} onClick={() => onSurfaceClick(tooth, 'LP')}>L/P</button>
     </div>
   )
 }
@@ -616,13 +632,13 @@ function App() {
                 <span><i className="legend-dot excluded" />Excluida</span>
               </div>
 
-              <div className="odontogram-grid">
+              <div className="quadrants-grid">
                 {controlQuadrants.map((quadrant) => (
-                  <section key={quadrant.title} className="odontogram-quadrant">
+                  <section key={quadrant.title} className="quadrant-card">
                     <div className="quadrant-title-row">
                       <h4>{quadrant.title}</h4>
                     </div>
-                    <div className="quadrant-tooths">
+                    <div className="quadrant-teeth">
                       {quadrant.teeth.map((number) => {
                         const tooth = toothLookup[number] ?? {
                           number,
@@ -643,13 +659,13 @@ function App() {
                               D: tooth.surfaces.D,
                               LP: tooth.surfaces.L,
                             }}
-                            onSurfaceClick={(surface) => {
+                            onSurfaceClick={(toothNumber, surface) => {
                               if (surface === 'LP') {
-                                setSurfaceStatus(tooth.number, 'L')
+                                setSurfaceStatus(toothNumber, 'L')
                                 return
                               }
 
-                              setSurfaceStatus(tooth.number, surface)
+                              setSurfaceStatus(toothNumber, surface)
                             }}
                           />
                         )

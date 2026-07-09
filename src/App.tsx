@@ -604,10 +604,10 @@ function App() {
                         const tooth = toothLookup[number]
                         return tooth ? (
                           <div key={number} className="tooth-card">
-                            <div className="tooth-number">{tooth.number}</div>
-                            <div className="tooth-surface-grid">
+                            <div className="tooth-cross">
                               <button type="button" className={`surface-btn surface-top ${tooth.surfaces.V}`} onClick={() => setSurfaceStatus(tooth.number, 'V')}>V</button>
                               <button type="button" className={`surface-btn surface-left ${tooth.surfaces.M}`} onClick={() => setSurfaceStatus(tooth.number, 'M')}>M</button>
+                              <div className="tooth-number">{tooth.number}</div>
                               <button type="button" className={`surface-btn surface-right ${tooth.surfaces.D}`} onClick={() => setSurfaceStatus(tooth.number, 'D')}>D</button>
                               <button type="button" className={`surface-btn surface-bottom ${tooth.surfaces.L}`} onClick={() => setSurfaceStatus(tooth.number, 'L')}>L/P</button>
                             </div>

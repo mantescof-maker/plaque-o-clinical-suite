@@ -683,7 +683,7 @@ button {
 .odontogram-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: 16px;
 }
 
 .odontogram-quadrant {
@@ -705,42 +705,51 @@ button {
 
 .quadrant-tooths {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(4, minmax(96px, 1fr));
+  gap: 12px;
 }
 
 .tooth-card {
   min-width: 0;
-  border-radius: 16px;
+  border-radius: 18px;
   border: 1px solid #e2ebee;
-  padding: 10px;
+  padding: 12px 10px;
   background: linear-gradient(135deg, #fcfefe 0%, #f5fbfc 100%);
   box-shadow: 0 10px 24px rgba(17, 49, 55, 0.04);
 }
 
 .tooth-number {
-  text-align: center;
+  display: grid;
+  place-items: center;
   font-weight: 700;
   color: #18312b;
-  margin-bottom: 8px;
+  background: #f8fcfd;
+  border: 1px solid #dbe8eb;
+  border-radius: 12px;
   font-size: 0.95rem;
+  min-width: 48px;
+  min-height: 48px;
 }
 
-.tooth-surface-grid {
+.tooth-cross {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(40px, 1fr) 52px minmax(40px, 1fr);
+  grid-template-rows: 38px 52px 38px;
   gap: 6px;
+  align-items: center;
+  justify-items: center;
 }
 
 .surface-btn {
   border: 2px solid #dce8eb;
   border-radius: 10px;
-  padding: 8px 4px;
-  font-size: 0.74rem;
+  padding: 8px 6px;
+  font-size: 0.75rem;
   font-weight: 700;
   color: #1f3d3c;
   background: #ffffff;
-  min-height: 34px;
+  min-height: 36px;
+  min-width: 36px;
 }
 
 .surface-btn.clean {
@@ -762,19 +771,28 @@ button {
 }
 
 .surface-top {
-  grid-column: 1 / -1;
+  grid-column: 2;
+  grid-row: 1;
 }
 
 .surface-bottom {
-  grid-column: 1 / -1;
+  grid-column: 2;
+  grid-row: 3;
 }
 
 .surface-left {
   grid-column: 1;
+  grid-row: 2;
 }
 
 .surface-right {
+  grid-column: 3;
+  grid-row: 2;
+}
+
+.tooth-cross .tooth-number {
   grid-column: 2;
+  grid-row: 2;
 }
 
 .summary-card p {
@@ -836,6 +854,10 @@ button {
   }
 
   .patients-view {
+    grid-template-columns: 1fr;
+  }
+
+  .odontogram-grid {
     grid-template-columns: 1fr;
   }
 }

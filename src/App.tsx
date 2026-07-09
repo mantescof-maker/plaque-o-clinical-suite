@@ -387,30 +387,40 @@ function App() {
 
               <div className="detail-stack">
                 <article className="patient-profile-card">
-                  <div className="patient-profile-main">
-                    <div className="profile-avatar">{selectedPatient.name.split(' ').map((part) => part[0]).slice(0, 2).join('')}</div>
-                    <div>
-                      <h4>{selectedPatient.name}</h4>
-                      <p>{selectedPatient.age} años · {selectedPatient.sex}</p>
+                  <div className="patient-profile-hero">
+                    <div className="patient-profile-main">
+                      <div className="profile-avatar-large">{selectedPatient.name.split(' ').map((part) => part[0]).slice(0, 2).join('')}</div>
+                      <div className="patient-profile-identity">
+                        <div className="patient-name-row">
+                          <h4>{selectedPatient.name}</h4>
+                          <span className="status-pill updated">Activo</span>
+                        </div>
+                        <p>{selectedPatient.age} años · {selectedPatient.sex}</p>
+                        <div className="profile-tags">
+                          <span>{selectedPatient.phone}</span>
+                          <span>{selectedPatient.email}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="patient-action-row">
+                      <button type="button" className="primary-btn" onClick={() => { setActiveView('control'); setFeedback('Se abre el control de placa desde el paciente seleccionado.') }}>
+                        Nuevo control de placa
+                      </button>
+                      <button type="button" className="secondary-btn" onClick={() => { setFeedback('Expediente clínico abierto para revisión.') }}>
+                        Ver expediente
+                      </button>
+                      <button type="button" className="secondary-btn" onClick={() => { setFeedback('Modo edición del paciente activado.') }}>
+                        Editar paciente
+                      </button>
                     </div>
                   </div>
+
                   <div className="patient-section-title">
                     <h3>Centro Clínico del Paciente</h3>
-                    <span className="badge">Activo</span>
+                    <span className="badge">Seguimiento activo</span>
                   </div>
-                  <div className="profile-tags">
-                    <span>{selectedPatient.phone}</span>
-                    <span>{selectedPatient.email}</span>
-                  </div>
+
                   <div className="profile-overview-grid">
-                    <div className="summary-item">
-                      <p>Edad</p>
-                      <strong>{selectedPatient.age} años</strong>
-                    </div>
-                    <div className="summary-item">
-                      <p>Sexo</p>
-                      <strong>{selectedPatient.sex}</strong>
-                    </div>
                     <div className="summary-item">
                       <p>Diagnóstico periodontal</p>
                       <strong>{selectedPatient.diagnosis}</strong>
@@ -420,7 +430,7 @@ function App() {
                       <strong>{selectedPatient.risk}</strong>
                     </div>
                     <div className="summary-item">
-                      <p>Último porcentaje de Control de Placa</p>
+                      <p>Último Control de Placa</p>
                       <strong>{selectedPatient.plaque}%</strong>
                     </div>
                     <div className="summary-item">

@@ -31,6 +31,17 @@ interface Tooth {
   surfaces: Record<SurfaceKey, SurfaceStatus>
 }
 
+interface ToothCardProps {
+  tooth: string
+  surfaces: {
+    V: SurfaceStatus
+    M: SurfaceStatus
+    D: SurfaceStatus
+    LP: SurfaceStatus
+  }
+  onSurfaceClick: (surface: 'V' | 'M' | 'D' | 'LP') => void
+}
+
 interface ErrorBoundaryState {
   hasError: boolean
 }
@@ -167,6 +178,18 @@ const controlQuadrants = [
   { title: 'Inferior derecho', teeth: ['48', '47', '46', '45', '44', '43', '42', '41'] },
   { title: 'Inferior izquierdo', teeth: ['31', '32', '33', '34', '35', '36', '37', '38'] },
 ]
+
+function ToothCard({ tooth, surfaces, onSurfaceClick }: ToothCardProps) {
+  return (
+    <div className="tooth-card">
+      <button type="button" className={`surface-button surface-v ${surfaces.V}`} onClick={() => onSurfaceClick('V')}>V</button>
+      <button type="button" className={`surface-button surface-m ${surfaces.M}`} onClick={() => onSurfaceClick('M')}>M</button>
+      <div className="tooth-number">{tooth}</div>
+      <button type="button" className={`surface-button surface-d ${surfaces.D}`} onClick={() => onSurfaceClick('D')}>D</button>
+      <button type="button" className={`surface-button surface-lp ${surfaces.LP}`} onClick={() => onSurfaceClick('LP')}>L/P</button>
+    </div>
+  )
+}
 
 function App() {
   const [activeView, setActiveView] = useState<View>('dashboard')
@@ -601,18 +624,35 @@ function App() {
                     </div>
                     <div className="quadrant-tooths">
                       {quadrant.teeth.map((number) => {
-                        const tooth = toothLookup[number]
-                        return tooth ? (
-                          <div key={number} className="tooth-card">
-                            <div className="tooth-cross">
-                              <button type="button" className={`surface-btn surface-top ${tooth.surfaces.V}`} onClick={() => setSurfaceStatus(tooth.number, 'V')}>V</button>
-                              <button type="button" className={`surface-btn surface-left ${tooth.surfaces.M}`} onClick={() => setSurfaceStatus(tooth.number, 'M')}>M</button>
-                              <div className="tooth-number">{tooth.number}</div>
-                              <button type="button" className={`surface-btn surface-right ${tooth.surfaces.D}`} onClick={() => setSurfaceStatus(tooth.number, 'D')}>D</button>
-                              <button type="button" className={`surface-btn surface-bottom ${tooth.surfaces.L}`} onClick={() => setSurfaceStatus(tooth.number, 'L')}>L/P</button>
-                            </div>
-                          </div>
-                        ) : null
+                        const tooth = toothLookup[number] ?? {
+                          number,
+                          surfaces: {
+                            V: 'clean' as SurfaceStatus,
+                            M: 'clean' as SurfaceStatus,
+                            D: 'clean' as SurfaceStatus,
+                            L: 'clean' as SurfaceStatus,
+                          },
+                        }
+                        return (
+                          <ToothCard
+                            key={number}
+                            tooth={tooth.number}
+                            surfaces={{
+                              V: tooth.surfaces.V,
+                              M: tooth.surfaces.M,
+                              D: tooth.surfaces.D,
+                              LP: tooth.surfaces.L,
+                            }}
+                            onSurfaceClick={(surface) => {
+                              if (surface === 'LP') {
+                                setSurfaceStatus(tooth.number, 'L')
+                                return
+                              }
+
+                              setSurfaceStatus(tooth.number, surface)
+                            }}
+                          />
+                        )
                       })}
                     </div>
                   </section>

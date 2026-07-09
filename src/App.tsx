@@ -42,6 +42,16 @@ interface ToothCardProps {
   onSurfaceClick: (tooth: string, surface: 'V' | 'M' | 'D' | 'LP') => void
 }
 
+interface SavedEvaluation {
+  patientName: string
+  date: string
+  plaqueSurfaces: number
+  evaluatedSurfaces: number
+  percentage: number
+  classification: string
+  message: string
+}
+
 interface ErrorBoundaryState {
   hasError: boolean
 }
@@ -179,6 +189,11 @@ const controlQuadrants = [
   { title: 'Inferior izquierdo', teeth: ['31', '32', '33', '34', '35', '36', '37', '38'] },
 ]
 
+const controlArcades = [
+  { title: 'Arcada superior', quadrants: controlQuadrants.slice(0, 2) },
+  { title: 'Arcada inferior', quadrants: controlQuadrants.slice(2, 4) },
+]
+
 const getSurfaceClass = (surface: SurfaceStatus): 'surface-clean' | 'surface-plaque' | 'surface-excluded' => {
   if (surface === 'plaque') {
     return 'surface-plaque'
@@ -214,7 +229,7 @@ function App() {
   const [search, setSearch] = useState('')
   const [teeth, setTeeth] = useState<Tooth[]>(() => createInitialTeeth())
   const [feedback, setFeedback] = useState('Sistema preparado para iniciar una evaluación clínica.')
-  const [savedSummary, setSavedSummary] = useState<string | null>(null)
+  const [savedSummary, setSavedSummary] = useState<SavedEvaluation | null>(null)
 
   const selectedPatient = patients.find((patient) => patient.id === selectedPatientId) ?? patients[0]
 
@@ -295,7 +310,16 @@ function App() {
   }
 
   const saveEvaluation = () => {
-    const summary = `Control guardado: ${evaluation.percentage}% de superficies con placa · ${evaluation.plaqueSurfaces}/${evaluation.evaluatedSurfaces} superficies evaluadas · Clasificación ${evaluation.classification}`
+    const dateLabel = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })
+    const clinicalMessage =
+      evaluation.percentage <= 10
+        ? 'Control excelente: mantener protocolo actual de higiene.'
+        : evaluation.percentage <= 20
+          ? 'Control favorable: reforzar técnica para consolidar mejora.'
+          : evaluation.percentage <= 30
+            ? 'Control regular: intensificar motivación y supervisión domiciliaria.'
+            : 'Control de alto riesgo: intervención intensiva y seguimiento estrecho.'
+
     setPatients((current) =>
       current.map((patient) =>
         patient.id === selectedPatientId
@@ -304,7 +328,7 @@ function App() {
               plaque: evaluation.percentage,
               timeline: [
                 {
-                  date: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }),
+                  date: dateLabel,
                   title: 'Control de placa guardado',
                   description: `Evaluación registrada con ${evaluation.percentage}% de placa.`,
                 },
@@ -314,9 +338,26 @@ function App() {
           : patient,
       ),
     )
-    setSavedSummary(summary)
+    setSavedSummary({
+      patientName: selectedPatient.name,
+      date: dateLabel,
+      plaqueSurfaces: evaluation.plaqueSurfaces,
+      evaluatedSurfaces: evaluation.evaluatedSurfaces,
+      percentage: evaluation.percentage,
+      classification: evaluation.classification,
+      message: clinicalMessage,
+    })
     setFeedback('Resumen local guardado y listo para revisión clínica.')
   }
+
+  const progressTone =
+    evaluation.percentage <= 10
+      ? 'excellent'
+      : evaluation.percentage <= 20
+        ? 'good'
+        : evaluation.percentage <= 30
+          ? 'regular'
+          : 'risk'
 
   return (
     <ErrorBoundary>
@@ -578,7 +619,7 @@ function App() {
 
           {activeView === 'control' && (
             <section className="view-section control-placa-view">
-              <article className="control-patient-card">
+              <article className="control-patient-card compact-header">
                 <div>
                   <p className="eyebrow">Paciente seleccionado</p>
                   <h3>{selectedPatient.name}</h3>
@@ -597,34 +638,40 @@ function App() {
                 </div>
               </article>
 
-              <div className="control-summary-grid">
-                <article className="metric-card compact">
-                  <p>Superficies con placa</p>
-                  <strong>{evaluation.plaqueSurfaces}</strong>
-                </article>
-                <article className="metric-card compact">
-                  <p>Superficies evaluadas</p>
-                  <strong>{evaluation.evaluatedSurfaces}</strong>
-                </article>
-                <article className="metric-card compact">
-                  <p>Porcentaje final</p>
-                  <strong>{evaluation.percentage}%</strong>
-                </article>
-                <article className="metric-card compact">
-                  <p>Clasificación</p>
-                  <strong>{evaluation.classification}</strong>
-                </article>
-              </div>
-
-              <div className="progress-card">
+              <article className="panel-card control-overview-card">
                 <div className="panel-title-row">
-                  <h3>Barra de progreso</h3>
-                  <span>{evaluation.percentage}%</span>
+                  <h3>Resumen clínico de evaluación</h3>
+                  <span className={`status-pill overview-pill ${progressTone}`}>{evaluation.classification}</span>
                 </div>
-                <div className="progress-bar" aria-label="Progreso de placa">
-                  <div style={{ width: `${evaluation.percentage}%` }} />
+                <div className="control-summary-grid">
+                  <article className="metric-card compact">
+                    <p>Superficies con placa</p>
+                    <strong>{evaluation.plaqueSurfaces}</strong>
+                  </article>
+                  <article className="metric-card compact">
+                    <p>Superficies evaluadas</p>
+                    <strong>{evaluation.evaluatedSurfaces}</strong>
+                  </article>
+                  <article className="metric-card compact">
+                    <p>Porcentaje final</p>
+                    <strong>{evaluation.percentage}%</strong>
+                  </article>
+                  <article className="metric-card compact">
+                    <p>Clasificación</p>
+                    <strong>{evaluation.classification}</strong>
+                  </article>
                 </div>
-              </div>
+
+                <div className={`progress-card progress-tone-${progressTone}`}>
+                  <div className="panel-title-row">
+                    <h3>Barra de progreso</h3>
+                    <span className="progress-percentage">{evaluation.percentage}%</span>
+                  </div>
+                  <div className="progress-bar" aria-label="Progreso de placa">
+                    <div style={{ width: `${evaluation.percentage}%` }} />
+                  </div>
+                </div>
+              </article>
 
               <div className="legend-row">
                 <span><i className="legend-dot clean" />Sin placa</span>
@@ -632,56 +679,71 @@ function App() {
                 <span><i className="legend-dot excluded" />Excluida</span>
               </div>
 
-              <div className="quadrants-grid">
-                {controlQuadrants.map((quadrant) => (
-                  <section key={quadrant.title} className="quadrant-card">
-                    <div className="quadrant-title-row">
-                      <h4>{quadrant.title}</h4>
-                    </div>
-                    <div className="quadrant-teeth">
-                      {quadrant.teeth.map((number) => {
-                        const tooth = toothLookup[number] ?? {
-                          number,
-                          surfaces: {
-                            V: 'clean' as SurfaceStatus,
-                            M: 'clean' as SurfaceStatus,
-                            D: 'clean' as SurfaceStatus,
-                            L: 'clean' as SurfaceStatus,
-                          },
-                        }
-                        return (
-                          <ToothCard
-                            key={number}
-                            tooth={tooth.number}
-                            surfaces={{
-                              V: tooth.surfaces.V,
-                              M: tooth.surfaces.M,
-                              D: tooth.surfaces.D,
-                              LP: tooth.surfaces.L,
-                            }}
-                            onSurfaceClick={(toothNumber, surface) => {
-                              if (surface === 'LP') {
-                                setSurfaceStatus(toothNumber, 'L')
-                                return
-                              }
+              {controlArcades.map((arcade) => (
+                <section key={arcade.title} className="arcade-section">
+                  <div className="arcade-title-row">
+                    <h3>{arcade.title}</h3>
+                  </div>
+                  <div className="quadrants-grid">
+                    {arcade.quadrants.map((quadrant) => (
+                      <section key={quadrant.title} className="quadrant-card">
+                        <div className="quadrant-title-row">
+                          <h4>{quadrant.title}</h4>
+                        </div>
+                        <div className="quadrant-teeth">
+                          {quadrant.teeth.map((number) => {
+                            const tooth = toothLookup[number] ?? {
+                              number,
+                              surfaces: {
+                                V: 'clean' as SurfaceStatus,
+                                M: 'clean' as SurfaceStatus,
+                                D: 'clean' as SurfaceStatus,
+                                L: 'clean' as SurfaceStatus,
+                              },
+                            }
+                            return (
+                              <ToothCard
+                                key={number}
+                                tooth={tooth.number}
+                                surfaces={{
+                                  V: tooth.surfaces.V,
+                                  M: tooth.surfaces.M,
+                                  D: tooth.surfaces.D,
+                                  LP: tooth.surfaces.L,
+                                }}
+                                onSurfaceClick={(toothNumber, surface) => {
+                                  if (surface === 'LP') {
+                                    setSurfaceStatus(toothNumber, 'L')
+                                    return
+                                  }
 
-                              setSurfaceStatus(toothNumber, surface)
-                            }}
-                          />
-                        )
-                      })}
-                    </div>
-                  </section>
-                ))}
-              </div>
+                                  setSurfaceStatus(toothNumber, surface)
+                                }}
+                              />
+                            )
+                          })}
+                        </div>
+                      </section>
+                    ))}
+                  </div>
+                </section>
+              ))}
 
               {savedSummary && (
-                <article className="panel-card summary-card">
+                <article className="panel-card summary-card clinical-summary-card">
                   <div className="panel-title-row">
-                    <h3>Resumen local guardado</h3>
+                    <h3>Resumen clínico guardado</h3>
                     <span className="badge">Guardado</span>
                   </div>
-                  <p>{savedSummary}</p>
+                  <div className="saved-grid">
+                    <div><span>Paciente</span><strong>{savedSummary.patientName}</strong></div>
+                    <div><span>Fecha</span><strong>{savedSummary.date}</strong></div>
+                    <div><span>Superficies con placa</span><strong>{savedSummary.plaqueSurfaces}</strong></div>
+                    <div><span>Superficies evaluadas</span><strong>{savedSummary.evaluatedSurfaces}</strong></div>
+                    <div><span>Porcentaje</span><strong>{savedSummary.percentage}%</strong></div>
+                    <div><span>Clasificación</span><strong>{savedSummary.classification}</strong></div>
+                  </div>
+                  <p className="clinical-message">{savedSummary.message}</p>
                 </article>
               )}
             </section>

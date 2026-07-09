@@ -582,7 +582,7 @@ button {
 }
 
 .progress-card {
-  padding: 16px;
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -593,7 +593,7 @@ button {
 
 .progress-bar {
   width: 100%;
-  height: 14px;
+  height: 16px;
   border-radius: 999px;
   background: #e8eff2;
   overflow: hidden;
@@ -605,6 +605,28 @@ button {
   background: linear-gradient(90deg, #2f9e6d, #147a8f);
 }
 
+.progress-percentage {
+  margin-left: auto;
+  font-weight: 800;
+  color: #0f3a37;
+}
+
+.progress-tone-excellent .progress-bar div {
+  background: linear-gradient(90deg, #159b78, #20b07d);
+}
+
+.progress-tone-good .progress-bar div {
+  background: linear-gradient(90deg, #1f8f8f, #2a7cbf);
+}
+
+.progress-tone-regular .progress-bar div {
+  background: linear-gradient(90deg, #d4a11e, #e7b833);
+}
+
+.progress-tone-risk .progress-bar div {
+  background: linear-gradient(90deg, #c94a44, #dc5a51);
+}
+
 .control-patient-card {
   display: flex;
   flex-direction: column;
@@ -613,6 +635,42 @@ button {
   border-radius: 20px;
   background: linear-gradient(135deg, #f8fdfb 0%, #f3f8fb 100%);
   border: 1px solid #dce8eb;
+}
+
+.control-patient-card.compact-header {
+  padding: 14px 16px;
+  gap: 10px;
+}
+
+.control-patient-card.compact-header h3 {
+  font-size: 1.08rem;
+}
+
+.control-overview-card {
+  padding: 14px;
+  gap: 12px;
+  background: linear-gradient(135deg, #ffffff 0%, #f6fbff 100%);
+  border: 1px solid #d7e4eb;
+}
+
+.overview-pill.excellent {
+  background: #e8f8f1;
+  color: #18795b;
+}
+
+.overview-pill.good {
+  background: #e7f2fb;
+  color: #1f669e;
+}
+
+.overview-pill.regular {
+  background: #fff4df;
+  color: #9f6a08;
+}
+
+.overview-pill.risk {
+  background: #fdeceb;
+  color: #a43934;
 }
 
 .control-patient-card h3 {
@@ -689,6 +747,20 @@ button {
   gap: 18px;
   width: 100%;
   min-width: 0;
+}
+
+.arcade-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-top: 1px solid #deeaee;
+  padding-top: 10px;
+}
+
+.arcade-title-row h3 {
+  margin: 0;
+  font-size: 1.02rem;
+  color: #163634;
 }
 
 .quadrant-card {
@@ -808,6 +880,41 @@ button {
   line-height: 1.6;
 }
 
+.clinical-summary-card {
+  background: linear-gradient(135deg, #ffffff 0%, #f5faf8 100%);
+}
+
+.saved-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.saved-grid div {
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid #dce8eb;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.saved-grid span {
+  color: #5d7377;
+  font-size: 0.8rem;
+}
+
+.saved-grid strong {
+  color: #13322e;
+}
+
+.clinical-message {
+  margin-top: 6px;
+  font-weight: 600;
+  color: #245e4f;
+}
+
 .error-shell {
   min-height: 100vh;
   display: grid;
@@ -867,6 +974,10 @@ button {
   .quadrants-grid {
     grid-template-columns: 1fr;
   }
+
+  .saved-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 1280px) {
@@ -904,6 +1015,10 @@ button {
 
   .quadrant-teeth {
     grid-template-columns: repeat(2, minmax(96px, 1fr));
+  }
+
+  .saved-grid {
+    grid-template-columns: 1fr;
   }
 }
 

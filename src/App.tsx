@@ -5,6 +5,12 @@ type View = 'dashboard' | 'patients' | 'control' | 'placeholder'
 type SurfaceStatus = 'clean' | 'plaque' | 'excluded'
 type SurfaceKey = 'V' | 'L' | 'M' | 'D'
 
+interface TimelineEvent {
+  date: string
+  title: string
+  description: string
+}
+
 interface Patient {
   id: number
   name: string
@@ -17,6 +23,7 @@ interface Patient {
   plaque: number
   nextVisit: string
   notes: string
+  timeline: TimelineEvent[]
 }
 
 interface Tooth {
@@ -59,7 +66,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
   }
 }
 
-const patientsData: Patient[] = [
+const patientsSeed: Patient[] = [
   {
     id: 1,
     name: 'Ana López',
@@ -72,6 +79,11 @@ const patientsData: Patient[] = [
     plaque: 18,
     nextVisit: '16 Jul 2026',
     notes: 'Respuesta adecuada a la terapia inicial y seguimiento de higiene diaria.',
+    timeline: [
+      { date: '09 Jul 2026', title: 'Control de placa realizado', description: 'Evaluación de biofilm con mejora clínica observable.' },
+      { date: '04 Jul 2026', title: 'Mantenimiento periodontal', description: 'Limpieza profesional y reforzamiento de higiene oral.' },
+      { date: '01 Jul 2026', title: 'Fotografía clínica agregada', description: 'Registro visual de la evolución del caso.' },
+    ],
   },
   {
     id: 2,
@@ -85,6 +97,11 @@ const patientsData: Patient[] = [
     plaque: 31,
     nextVisit: '20 Jul 2026',
     notes: 'Requiere refuerzo de técnica de cepillado y control de biofilm.',
+    timeline: [
+      { date: '08 Jul 2026', title: 'Control de placa realizado', description: 'Se registraron múltiples superficies con placa visible.' },
+      { date: '03 Jul 2026', title: 'Mantenimiento periodontal', description: 'Revisión de encías y reforzamiento de higiene oral.' },
+      { date: '28 Jun 2026', title: 'Próxima revisión programada', description: 'Cita para control clínico en la próxima semana.' },
+    ],
   },
   {
     id: 3,
@@ -98,6 +115,11 @@ const patientsData: Patient[] = [
     plaque: 9,
     nextVisit: '27 Jul 2026',
     notes: 'Mantenimiento periodontal en buen estado clínico con excelente adherencia.',
+    timeline: [
+      { date: '07 Jul 2026', title: 'Control de placa realizado', description: 'Mejora favorable y estabilidad periodontal.' },
+      { date: '30 Jun 2026', title: 'Fotografía clínica agregada', description: 'Registro visual de la evolución clínica.' },
+      { date: '22 Jun 2026', title: 'Próxima revisión programada', description: 'Seguimiento trimestral planificado.' },
+    ],
   },
 ]
 
@@ -139,33 +161,34 @@ const clinicalCards = [
   { title: 'IA Clínica', description: 'Recomendaciones asistidas para la próxima visita.', status: 'Disponible', accent: 'pending' },
 ]
 
-const timelineEvents = [
-  { title: 'Control de placa realizado', date: '09 Jul 2026', description: 'Evaluación de biofilm con mejora clínica observable.' },
-  { title: 'Mantenimiento periodontal', date: '04 Jul 2026', description: 'Limpieza profesional y reforzamiento de higiene oral.' },
-  { title: 'Fotografía clínica agregada', date: '01 Jul 2026', description: 'Registro visual de la evolución del caso.' },
-  { title: 'Próxima revisión programada', date: '16 Jul 2026', description: 'Cita prevista para seguimiento y ajuste terapéutico.' },
+const controlQuadrants = [
+  { title: 'Superior derecho', teeth: ['18', '17', '16', '15', '14', '13', '12', '11'] },
+  { title: 'Superior izquierdo', teeth: ['21', '22', '23', '24', '25', '26', '27', '28'] },
+  { title: 'Inferior derecho', teeth: ['48', '47', '46', '45', '44', '43', '42', '41'] },
+  { title: 'Inferior izquierdo', teeth: ['31', '32', '33', '34', '35', '36', '37', '38'] },
 ]
 
 function App() {
   const [activeView, setActiveView] = useState<View>('dashboard')
-  const [selectedPatientId, setSelectedPatientId] = useState(patientsData[0].id)
+  const [patients, setPatients] = useState<Patient[]>(patientsSeed)
+  const [selectedPatientId, setSelectedPatientId] = useState(patientsSeed[0].id)
   const [search, setSearch] = useState('')
   const [teeth, setTeeth] = useState<Tooth[]>(() => createInitialTeeth())
   const [feedback, setFeedback] = useState('Sistema preparado para iniciar una evaluación clínica.')
   const [savedSummary, setSavedSummary] = useState<string | null>(null)
 
-  const selectedPatient = patientsData.find((patient) => patient.id === selectedPatientId) ?? patientsData[0]
+  const selectedPatient = patients.find((patient) => patient.id === selectedPatientId) ?? patients[0]
 
   const filteredPatients = useMemo(() => {
     const normalized = search.trim().toLowerCase()
     if (!normalized) {
-      return patientsData
+      return patients
     }
 
-    return patientsData.filter((patient) =>
+    return patients.filter((patient) =>
       `${patient.name} ${patient.diagnosis} ${patient.risk}`.toLowerCase().includes(normalized),
     )
-  }, [search])
+  }, [patients, search])
 
   const evaluation = useMemo(() => {
     const evaluatedSurfaces = teeth.reduce((total, tooth) => {
@@ -180,11 +203,13 @@ function App() {
 
     const percentage = evaluatedSurfaces === 0 ? 0 : Math.round((plaqueSurfaces / evaluatedSurfaces) * 100)
 
-    let classification = 'Bajo'
-    if (percentage >= 30) {
-      classification = 'Alto'
-    } else if (percentage >= 15) {
-      classification = 'Moderado'
+    let classification = 'Excelente'
+    if (percentage >= 11 && percentage <= 20) {
+      classification = 'Bueno'
+    } else if (percentage >= 21 && percentage <= 30) {
+      classification = 'Regular'
+    } else if (percentage > 30) {
+      classification = 'Alto riesgo'
     }
 
     return {
@@ -232,6 +257,24 @@ function App() {
 
   const saveEvaluation = () => {
     const summary = `Control guardado: ${evaluation.percentage}% de superficies con placa · ${evaluation.plaqueSurfaces}/${evaluation.evaluatedSurfaces} superficies evaluadas · Clasificación ${evaluation.classification}`
+    setPatients((current) =>
+      current.map((patient) =>
+        patient.id === selectedPatientId
+          ? {
+              ...patient,
+              plaque: evaluation.percentage,
+              timeline: [
+                {
+                  date: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }),
+                  title: 'Control de placa guardado',
+                  description: `Evaluación registrada con ${evaluation.percentage}% de placa.`,
+                },
+                ...patient.timeline,
+              ].slice(0, 4),
+            }
+          : patient,
+      ),
+    )
     setSavedSummary(summary)
     setFeedback('Resumen local guardado y listo para revisión clínica.')
   }
@@ -362,7 +405,7 @@ function App() {
                   <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre o diagnóstico" />
                 </label>
                 <div className="patient-list">
-                  {filteredPatients.map((patient) => (
+                  {filteredPatients.map((patient: Patient) => (
                     <button
                       key={patient.id}
                       type="button"
@@ -373,7 +416,7 @@ function App() {
                       }}
                     >
                       <div className="patient-row-main">
-                        <div className="avatar-pill">{patient.name.split(' ').map((part) => part[0]).slice(0, 2).join('')}</div>
+                        <div className="avatar-pill">{patient.name.split(' ').map((part: string) => part[0]).slice(0, 2).join('')}</div>
                         <div>
                           <strong>{patient.name}</strong>
                           <p>{patient.diagnosis}</p>
@@ -468,8 +511,8 @@ function App() {
                       <span className="badge">Reciente</span>
                     </div>
                     <ul className="timeline-list">
-                      {timelineEvents.map((event) => (
-                        <li key={event.title} className="timeline-entry">
+                      {selectedPatient.timeline.map((event) => (
+                        <li key={`${event.title}-${event.date}`} className="timeline-entry">
                           <strong>{event.date}</strong>
                           <span>{event.title}</span>
                           <p>{event.description}</p>
@@ -496,17 +539,24 @@ function App() {
 
           {activeView === 'control' && (
             <section className="view-section control-placa-view">
-              <div className="hero-card compact">
+              <article className="control-patient-card">
                 <div>
-                  <p className="eyebrow">Odontograma FDI permanente</p>
-                  <h3>Evaluación interactiva de superficies con placa</h3>
-                  <p>Haz clic en cada superficie para alternar entre sin placa, con placa y excluida.</p>
+                  <p className="eyebrow">Paciente seleccionado</p>
+                  <h3>{selectedPatient.name}</h3>
+                  <p>{selectedPatient.age} años · {selectedPatient.sex} · {selectedPatient.diagnosis}</p>
+                </div>
+                <div className="patient-meta-grid">
+                  <div><span>Riesgo</span><strong>{selectedPatient.risk}</strong></div>
+                  <div><span>Último porcentaje</span><strong>{selectedPatient.plaque}%</strong></div>
+                  <div><span>Próxima cita</span><strong>{selectedPatient.nextVisit}</strong></div>
+                  <div><span>Fecha</span><strong>{new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}</strong></div>
                 </div>
                 <div className="detail-actions">
+                  <button type="button" className="secondary-btn" onClick={() => { setActiveView('patients'); setFeedback('Se devuelve al centro clínico del paciente.') }}>Volver al paciente</button>
                   <button type="button" className="secondary-btn" onClick={resetEvaluation}>Reiniciar evaluación</button>
                   <button type="button" className="primary-btn" onClick={saveEvaluation}>Guardar evaluación</button>
                 </div>
-              </div>
+              </article>
 
               <div className="control-summary-grid">
                 <article className="metric-card compact">
@@ -537,72 +587,36 @@ function App() {
                 </div>
               </div>
 
-              <div className="odontogram-card">
-                {['18', '17', '16', '15', '14', '13', '12', '11'].map((number) => {
-                  const tooth = toothLookup[number]
-                  return tooth ? (
-                    <div key={number} className="tooth-card">
-                      <div className="tooth-number">{tooth.number}</div>
-                      <div className="tooth-surfaces">
-                        <button type="button" className={`surface-btn ${tooth.surfaces.V}`} onClick={() => setSurfaceStatus(tooth.number, 'V')}>V</button>
-                        <button type="button" className={`surface-btn ${tooth.surfaces.L}`} onClick={() => setSurfaceStatus(tooth.number, 'L')}>L/P</button>
-                        <button type="button" className={`surface-btn ${tooth.surfaces.M}`} onClick={() => setSurfaceStatus(tooth.number, 'M')}>M</button>
-                        <button type="button" className={`surface-btn ${tooth.surfaces.D}`} onClick={() => setSurfaceStatus(tooth.number, 'D')}>D</button>
-                      </div>
-                    </div>
-                  ) : null
-                })}
+              <div className="legend-row">
+                <span><i className="legend-dot clean" />Sin placa</span>
+                <span><i className="legend-dot plaque" />Con placa</span>
+                <span><i className="legend-dot excluded" />Excluida</span>
               </div>
 
-              <div className="odontogram-card second-row">
-                {['21', '22', '23', '24', '25', '26', '27', '28'].map((number) => {
-                  const tooth = toothLookup[number]
-                  return tooth ? (
-                    <div key={number} className="tooth-card">
-                      <div className="tooth-number">{tooth.number}</div>
-                      <div className="tooth-surfaces">
-                        <button type="button" className={`surface-btn ${tooth.surfaces.V}`} onClick={() => setSurfaceStatus(tooth.number, 'V')}>V</button>
-                        <button type="button" className={`surface-btn ${tooth.surfaces.L}`} onClick={() => setSurfaceStatus(tooth.number, 'L')}>L/P</button>
-                        <button type="button" className={`surface-btn ${tooth.surfaces.M}`} onClick={() => setSurfaceStatus(tooth.number, 'M')}>M</button>
-                        <button type="button" className={`surface-btn ${tooth.surfaces.D}`} onClick={() => setSurfaceStatus(tooth.number, 'D')}>D</button>
-                      </div>
+              <div className="odontogram-grid">
+                {controlQuadrants.map((quadrant) => (
+                  <section key={quadrant.title} className="odontogram-quadrant">
+                    <div className="quadrant-title-row">
+                      <h4>{quadrant.title}</h4>
                     </div>
-                  ) : null
-                })}
-              </div>
-
-              <div className="odontogram-card second-row">
-                {['48', '47', '46', '45', '44', '43', '42', '41'].map((number) => {
-                  const tooth = toothLookup[number]
-                  return tooth ? (
-                    <div key={number} className="tooth-card">
-                      <div className="tooth-number">{tooth.number}</div>
-                      <div className="tooth-surfaces">
-                        <button type="button" className={`surface-btn ${tooth.surfaces.V}`} onClick={() => setSurfaceStatus(tooth.number, 'V')}>V</button>
-                        <button type="button" className={`surface-btn ${tooth.surfaces.L}`} onClick={() => setSurfaceStatus(tooth.number, 'L')}>L/P</button>
-                        <button type="button" className={`surface-btn ${tooth.surfaces.M}`} onClick={() => setSurfaceStatus(tooth.number, 'M')}>M</button>
-                        <button type="button" className={`surface-btn ${tooth.surfaces.D}`} onClick={() => setSurfaceStatus(tooth.number, 'D')}>D</button>
-                      </div>
+                    <div className="quadrant-tooths">
+                      {quadrant.teeth.map((number) => {
+                        const tooth = toothLookup[number]
+                        return tooth ? (
+                          <div key={number} className="tooth-card">
+                            <div className="tooth-number">{tooth.number}</div>
+                            <div className="tooth-surface-grid">
+                              <button type="button" className={`surface-btn surface-top ${tooth.surfaces.V}`} onClick={() => setSurfaceStatus(tooth.number, 'V')}>V</button>
+                              <button type="button" className={`surface-btn surface-left ${tooth.surfaces.M}`} onClick={() => setSurfaceStatus(tooth.number, 'M')}>M</button>
+                              <button type="button" className={`surface-btn surface-right ${tooth.surfaces.D}`} onClick={() => setSurfaceStatus(tooth.number, 'D')}>D</button>
+                              <button type="button" className={`surface-btn surface-bottom ${tooth.surfaces.L}`} onClick={() => setSurfaceStatus(tooth.number, 'L')}>L/P</button>
+                            </div>
+                          </div>
+                        ) : null
+                      })}
                     </div>
-                  ) : null
-                })}
-              </div>
-
-              <div className="odontogram-card second-row">
-                {['31', '32', '33', '34', '35', '36', '37', '38'].map((number) => {
-                  const tooth = toothLookup[number]
-                  return tooth ? (
-                    <div key={number} className="tooth-card">
-                      <div className="tooth-number">{tooth.number}</div>
-                      <div className="tooth-surfaces">
-                        <button type="button" className={`surface-btn ${tooth.surfaces.V}`} onClick={() => setSurfaceStatus(tooth.number, 'V')}>V</button>
-                        <button type="button" className={`surface-btn ${tooth.surfaces.L}`} onClick={() => setSurfaceStatus(tooth.number, 'L')}>L/P</button>
-                        <button type="button" className={`surface-btn ${tooth.surfaces.M}`} onClick={() => setSurfaceStatus(tooth.number, 'M')}>M</button>
-                        <button type="button" className={`surface-btn ${tooth.surfaces.D}`} onClick={() => setSurfaceStatus(tooth.number, 'D')}>D</button>
-                      </div>
-                    </div>
-                  ) : null
-                })}
+                  </section>
+                ))}
               </div>
 
               {savedSummary && (

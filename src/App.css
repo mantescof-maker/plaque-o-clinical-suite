@@ -842,6 +842,13 @@ button {
   grid-area: d;
 }
 
+.tooth-card.tooth-card-right-quadrant {
+  grid-template-areas:
+    ". v ."
+    "d number m"
+    ". lp .";
+}
+
 .surface-lp {
   grid-area: lp;
   width: 40px;

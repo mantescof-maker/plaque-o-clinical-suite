@@ -33,6 +33,7 @@ interface Tooth {
 
 interface ToothCardProps {
   tooth: string
+  isRightQuadrant: boolean
   surfaces: {
     V: SurfaceStatus
     M: SurfaceStatus
@@ -206,9 +207,9 @@ const getSurfaceClass = (surface: SurfaceStatus): 'surface-clean' | 'surface-pla
   return 'surface-clean'
 }
 
-function ToothCard({ tooth, surfaces, onSurfaceClick }: ToothCardProps) {
+function ToothCard({ tooth, isRightQuadrant, surfaces, onSurfaceClick }: ToothCardProps) {
   return (
-    <div className="tooth-card">
+    <div className={`tooth-card ${isRightQuadrant ? 'tooth-card-right-quadrant' : 'tooth-card-left-quadrant'}`}>
       <button type="button" className={`surface-button surface-v ${getSurfaceClass(surfaces.V)}`} onClick={() => onSurfaceClick(tooth, 'V')}>V</button>
 
       <button type="button" className={`surface-button surface-m ${getSurfaceClass(surfaces.M)}`} onClick={() => onSurfaceClick(tooth, 'M')}>M</button>
@@ -220,6 +221,11 @@ function ToothCard({ tooth, surfaces, onSurfaceClick }: ToothCardProps) {
       <button type="button" className={`surface-button surface-lp ${getSurfaceClass(surfaces.LP)}`} onClick={() => onSurfaceClick(tooth, 'LP')}>L/P</button>
     </div>
   )
+}
+
+const isRightQuadrant = (tooth: string) => {
+  const quadrant = Number(tooth[0])
+  return quadrant === 1 || quadrant === 4
 }
 
 function App() {
@@ -705,6 +711,7 @@ function App() {
                               <ToothCard
                                 key={number}
                                 tooth={tooth.number}
+                                isRightQuadrant={isRightQuadrant(tooth.number)}
                                 surfaces={{
                                   V: tooth.surfaces.V,
                                   M: tooth.surfaces.M,

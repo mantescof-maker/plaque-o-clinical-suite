@@ -2,7 +2,7 @@ import { Component, useEffect, useMemo, useState, type ErrorInfo, type ReactNode
 import './App.css'
 import { isSupabaseConfigured, supabase } from './supabaseClient'
 
-type View = 'dashboard' | 'patients' | 'control' | 'placeholder'
+type View = 'dashboard' | 'patients' | 'control' | 'settings' | 'placeholder'
 type SurfaceStatus = 'clean' | 'plaque' | 'excluded'
 type SurfaceKey = 'V' | 'L' | 'M' | 'D'
 
@@ -172,7 +172,7 @@ const navItems: Array<{ label: string; view: View }> = [
   { label: 'Control de Placa', view: 'control' },
   { label: 'Fotografías', view: 'placeholder' },
   { label: 'Reportes', view: 'placeholder' },
-  { label: 'Configuración', view: 'placeholder' },
+  { label: 'Configuración', view: 'settings' },
 ]
 
 const clinicalCards = [
@@ -274,10 +274,10 @@ function App() {
   const [feedback, setFeedback] = useState('Sistema preparado para iniciar una evaluación clínica.')
   const [savedSummary, setSavedSummary] = useState<PlaqueControlRecord | null>(null)
   const [plaqueControlHistory, setPlaqueControlHistory] = useState<PlaqueControlRecord[]>([])
-  const [supabaseConnectionState, setSupabaseConnectionState] = useState<'checking' | 'configured' | 'missing' | 'error'>(
+  const [supabaseStatus, setSupabaseStatus] = useState<'checking' | 'configured' | 'missing' | 'error'>(
     isSupabaseConfigured ? 'checking' : 'missing',
   )
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [authStatus, setAuthStatus] = useState<'si' | 'no'>('no')
   const [supabaseError, setSupabaseError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -313,8 +313,8 @@ function App() {
           return
         }
 
-        setSupabaseConnectionState('missing')
-        setIsAuthenticated(false)
+        setSupabaseStatus('missing')
+        setAuthStatus('no')
         setSupabaseError(null)
         return
       }
@@ -323,7 +323,7 @@ function App() {
         return
       }
 
-      setSupabaseConnectionState('checking')
+      setSupabaseStatus('checking')
 
       try {
         const { data, error } = await supabase.auth.getSession()
@@ -336,16 +336,16 @@ function App() {
           return
         }
 
-        setSupabaseConnectionState('configured')
-        setIsAuthenticated(Boolean(data.session))
+        setSupabaseStatus('configured')
+        setAuthStatus(data.session ? 'si' : 'no')
         setSupabaseError(null)
       } catch (error) {
         if (!isCurrent) {
           return
         }
 
-        setSupabaseConnectionState('error')
-        setIsAuthenticated(false)
+        setSupabaseStatus('error')
+        setAuthStatus('no')
         setSupabaseError(error instanceof Error ? error.message : 'No se pudo verificar la sesión de Supabase.')
       }
     }
@@ -490,6 +490,23 @@ function App() {
           ? 'regular'
           : 'risk'
 
+  const supabaseStatusCard = (
+    <article className="panel-card supabase-card">
+      <div className="panel-title-row">
+        <h3>Estado Supabase</h3>
+        <span className={`badge ${supabaseStatus === 'error' ? 'badge-alert' : ''}`}>
+          {supabaseStatus === 'configured' && 'Supabase configurado'}
+          {supabaseStatus === 'missing' && 'Faltan variables de Supabase'}
+          {supabaseStatus === 'checking' && 'Verificando sesión'}
+          {supabaseStatus === 'error' && 'Error de conexión'}
+        </span>
+      </div>
+      <p>Configuración: {isSupabaseConfigured ? 'Configurado' : 'Faltan variables'}</p>
+      <p>Usuario autenticado: {authStatus === 'si' ? 'Sí' : 'No'}</p>
+      {supabaseError && <p className="supabase-error">Error: {supabaseError}</p>}
+    </article>
+  )
+
   return (
     <ErrorBoundary>
       <div className="app-shell">
@@ -529,7 +546,7 @@ function App() {
           <header className="topbar">
             <div>
               <p className="eyebrow">Centro de operaciones</p>
-              <h2>{activeView === 'dashboard' ? 'Dashboard clínico' : activeView === 'patients' ? 'Pacientes' : activeView === 'control' ? 'Control de Placa' : 'Módulo en preparación'}</h2>
+              <h2>{activeView === 'dashboard' ? 'Dashboard clínico' : activeView === 'patients' ? 'Pacientes' : activeView === 'control' ? 'Control de Placa' : activeView === 'settings' ? 'Configuración' : 'Módulo en preparación'}</h2>
             </div>
             <div className="topbar-chip">Hoy · 09 Jul 2026</div>
           </header>
@@ -550,6 +567,8 @@ function App() {
                   Nuevo control de placa
                 </button>
               </div>
+
+              {supabaseStatusCard}
 
               <div className="metrics-grid">
                 <article className="metric-card">
@@ -599,20 +618,6 @@ function App() {
                   </div>
                 </article>
 
-                <article className="panel-card supabase-card">
-                  <div className="panel-title-row">
-                    <h3>Estado de Supabase</h3>
-                    <span className={`badge ${supabaseConnectionState === 'error' ? 'badge-alert' : ''}`}>
-                      {supabaseConnectionState === 'configured' && 'Supabase configurado'}
-                      {supabaseConnectionState === 'missing' && 'Faltan variables de Supabase'}
-                      {supabaseConnectionState === 'checking' && 'Verificando sesión'}
-                      {supabaseConnectionState === 'error' && 'Error de conexión'}
-                    </span>
-                  </div>
-                  <p>{isSupabaseConfigured ? 'Supabase configurado' : 'Faltan variables de Supabase'}</p>
-                  <p>Usuario autenticado: {isAuthenticated ? 'Sí' : 'No'}</p>
-                  {supabaseError && <p className="supabase-error">Error controlado: {supabaseError}</p>}
-                </article>
               </div>
             </section>
           )}
@@ -928,6 +933,20 @@ function App() {
                   <p className="clinical-message"><strong>Interpretacion clinica:</strong> {savedSummary.interpretation}</p>
                 </article>
               )}
+            </section>
+          )}
+
+          {activeView === 'settings' && (
+            <section className="view-section">
+              <article className="hero-card compact">
+                <div>
+                  <p className="eyebrow">Configuración</p>
+                  <h3>Conectividad y parámetros de plataforma</h3>
+                  <p>Estado actual de integración con Supabase para validar inicialización y sesión.</p>
+                </div>
+              </article>
+
+              {supabaseStatusCard}
             </section>
           )}
 

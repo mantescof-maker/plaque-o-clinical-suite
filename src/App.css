@@ -641,6 +641,26 @@ button {
   color: #147a8f;
 }
 
+.supabase-card {
+  background: linear-gradient(135deg, #ffffff 0%, #f4fbff 100%);
+}
+
+.supabase-card p {
+  margin: 0;
+  color: #4b6873;
+}
+
+.badge.badge-alert {
+  background: #fdeceb;
+  color: #a43934;
+}
+
+.supabase-error {
+  margin-top: 8px;
+  color: #a43934;
+  font-weight: 600;
+}
+
 .progress-card {
   padding: 14px 16px;
   display: flex;

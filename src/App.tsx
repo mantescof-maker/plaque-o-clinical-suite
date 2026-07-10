@@ -1,5 +1,6 @@
 import { Component, useEffect, useMemo, useState, type ErrorInfo, type ReactNode } from 'react'
 import './App.css'
+import { isSupabaseConfigured, supabase } from './supabaseClient'
 
 type View = 'dashboard' | 'patients' | 'control' | 'placeholder'
 type SurfaceStatus = 'clean' | 'plaque' | 'excluded'
@@ -273,6 +274,11 @@ function App() {
   const [feedback, setFeedback] = useState('Sistema preparado para iniciar una evaluación clínica.')
   const [savedSummary, setSavedSummary] = useState<PlaqueControlRecord | null>(null)
   const [plaqueControlHistory, setPlaqueControlHistory] = useState<PlaqueControlRecord[]>([])
+  const [supabaseConnectionState, setSupabaseConnectionState] = useState<'checking' | 'configured' | 'missing' | 'error'>(
+    isSupabaseConfigured ? 'checking' : 'missing',
+  )
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [supabaseError, setSupabaseError] = useState<string | null>(null)
 
   useEffect(() => {
     try {
@@ -297,6 +303,59 @@ function App() {
       console.error('No se pudo guardar el historial local de placa:', error)
     }
   }, [plaqueControlHistory])
+
+  useEffect(() => {
+    let isCurrent = true
+
+    const verifySupabaseSession = async () => {
+      if (!isSupabaseConfigured || !supabase) {
+        if (!isCurrent) {
+          return
+        }
+
+        setSupabaseConnectionState('missing')
+        setIsAuthenticated(false)
+        setSupabaseError(null)
+        return
+      }
+
+      if (!isCurrent) {
+        return
+      }
+
+      setSupabaseConnectionState('checking')
+
+      try {
+        const { data, error } = await supabase.auth.getSession()
+
+        if (error) {
+          throw error
+        }
+
+        if (!isCurrent) {
+          return
+        }
+
+        setSupabaseConnectionState('configured')
+        setIsAuthenticated(Boolean(data.session))
+        setSupabaseError(null)
+      } catch (error) {
+        if (!isCurrent) {
+          return
+        }
+
+        setSupabaseConnectionState('error')
+        setIsAuthenticated(false)
+        setSupabaseError(error instanceof Error ? error.message : 'No se pudo verificar la sesión de Supabase.')
+      }
+    }
+
+    void verifySupabaseSession()
+
+    return () => {
+      isCurrent = false
+    }
+  }, [])
 
   const selectedPatient = patients.find((patient) => patient.id === selectedPatientId) ?? patients[0]
 
@@ -538,6 +597,21 @@ function App() {
                       Ver pacientes
                     </button>
                   </div>
+                </article>
+
+                <article className="panel-card supabase-card">
+                  <div className="panel-title-row">
+                    <h3>Estado de Supabase</h3>
+                    <span className={`badge ${supabaseConnectionState === 'error' ? 'badge-alert' : ''}`}>
+                      {supabaseConnectionState === 'configured' && 'Supabase configurado'}
+                      {supabaseConnectionState === 'missing' && 'Faltan variables de Supabase'}
+                      {supabaseConnectionState === 'checking' && 'Verificando sesión'}
+                      {supabaseConnectionState === 'error' && 'Error de conexión'}
+                    </span>
+                  </div>
+                  <p>{isSupabaseConfigured ? 'Supabase configurado' : 'Faltan variables de Supabase'}</p>
+                  <p>Usuario autenticado: {isAuthenticated ? 'Sí' : 'No'}</p>
+                  {supabaseError && <p className="supabase-error">Error controlado: {supabaseError}</p>}
                 </article>
               </div>
             </section>

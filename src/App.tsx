@@ -1,4 +1,4 @@
-import { Component, useMemo, useState, type ErrorInfo, type ReactNode } from 'react'
+import { Component, useEffect, useMemo, useState, type ErrorInfo, type ReactNode } from 'react'
 import './App.css'
 
 type View = 'dashboard' | 'patients' | 'control' | 'placeholder'
@@ -43,14 +43,16 @@ interface ToothCardProps {
   onSurfaceClick: (tooth: string, surface: 'V' | 'M' | 'D' | 'LP') => void
 }
 
-interface SavedEvaluation {
+interface PlaqueControlRecord {
+  id: number
+  patientId: number
   patientName: string
   date: string
   plaqueSurfaces: number
   evaluatedSurfaces: number
   percentage: number
   classification: string
-  message: string
+  interpretation: string
 }
 
 interface ErrorBoundaryState {
@@ -195,6 +197,8 @@ const controlArcades = [
   { title: 'Arcada inferior', quadrants: controlQuadrants.slice(2, 4) },
 ]
 
+const plaqueHistoryStorageKey = 'plaque-control-history-v1'
+
 const getSurfaceClass = (surface: SurfaceStatus): 'surface-clean' | 'surface-plaque' | 'surface-excluded' => {
   if (surface === 'plaque') {
     return 'surface-plaque'
@@ -228,6 +232,38 @@ const isRightQuadrant = (tooth: string) => {
   return quadrant === 1 || quadrant === 4
 }
 
+const getClinicalInterpretation = (percentage: number) => {
+  if (percentage <= 10) {
+    return 'Excelente control de placa. Mantener técnica de higiene.'
+  }
+
+  if (percentage <= 20) {
+    return 'Buen control. Reforzar zonas retentivas e interproximales.'
+  }
+
+  if (percentage <= 30) {
+    return 'Control regular. Reforzar técnica de cepillado e higiene interdental.'
+  }
+
+  return 'Alto riesgo. Indicar motivación de higiene y seguimiento estrecho.'
+}
+
+const getSimulatedTrend = (record: PlaqueControlRecord, previousRecord?: PlaqueControlRecord) => {
+  if (!previousRecord) {
+    return 'Linea basal'
+  }
+
+  if (record.percentage < previousRecord.percentage) {
+    return 'Mejorando'
+  }
+
+  if (record.percentage > previousRecord.percentage) {
+    return 'Incremento de placa'
+  }
+
+  return 'Estable'
+}
+
 function App() {
   const [activeView, setActiveView] = useState<View>('dashboard')
   const [patients, setPatients] = useState<Patient[]>(patientsSeed)
@@ -235,7 +271,32 @@ function App() {
   const [search, setSearch] = useState('')
   const [teeth, setTeeth] = useState<Tooth[]>(() => createInitialTeeth())
   const [feedback, setFeedback] = useState('Sistema preparado para iniciar una evaluación clínica.')
-  const [savedSummary, setSavedSummary] = useState<SavedEvaluation | null>(null)
+  const [savedSummary, setSavedSummary] = useState<PlaqueControlRecord | null>(null)
+  const [plaqueControlHistory, setPlaqueControlHistory] = useState<PlaqueControlRecord[]>([])
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(plaqueHistoryStorageKey)
+      if (!raw) {
+        return
+      }
+
+      const parsed = JSON.parse(raw) as PlaqueControlRecord[]
+      if (Array.isArray(parsed)) {
+        setPlaqueControlHistory(parsed)
+      }
+    } catch (error) {
+      console.error('No se pudo leer el historial local de placa:', error)
+    }
+  }, [])
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(plaqueHistoryStorageKey, JSON.stringify(plaqueControlHistory))
+    } catch (error) {
+      console.error('No se pudo guardar el historial local de placa:', error)
+    }
+  }, [plaqueControlHistory])
 
   const selectedPatient = patients.find((patient) => patient.id === selectedPatientId) ?? patients[0]
 
@@ -249,6 +310,13 @@ function App() {
       `${patient.name} ${patient.diagnosis} ${patient.risk}`.toLowerCase().includes(normalized),
     )
   }, [patients, search])
+
+  const patientPlaqueHistory = useMemo(() => {
+    return plaqueControlHistory.filter((record) => record.patientId === selectedPatientId)
+  }, [plaqueControlHistory, selectedPatientId])
+
+  const latestPatientControl = patientPlaqueHistory[0] ?? null
+  const latestTimelineControl = selectedPatient.timeline.find((event) => event.title.toLowerCase().includes('control de placa'))
 
   const evaluation = useMemo(() => {
     const evaluatedSurfaces = teeth.reduce((total, tooth) => {
@@ -317,14 +385,20 @@ function App() {
 
   const saveEvaluation = () => {
     const dateLabel = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })
-    const clinicalMessage =
-      evaluation.percentage <= 10
-        ? 'Control excelente: mantener protocolo actual de higiene.'
-        : evaluation.percentage <= 20
-          ? 'Control favorable: reforzar técnica para consolidar mejora.'
-          : evaluation.percentage <= 30
-            ? 'Control regular: intensificar motivación y supervisión domiciliaria.'
-            : 'Control de alto riesgo: intervención intensiva y seguimiento estrecho.'
+    const interpretation = getClinicalInterpretation(evaluation.percentage)
+    const newRecord: PlaqueControlRecord = {
+      id: Date.now(),
+      patientId: selectedPatientId,
+      patientName: selectedPatient.name,
+      date: dateLabel,
+      plaqueSurfaces: evaluation.plaqueSurfaces,
+      evaluatedSurfaces: evaluation.evaluatedSurfaces,
+      percentage: evaluation.percentage,
+      classification: evaluation.classification,
+      interpretation,
+    }
+
+    setPlaqueControlHistory((current) => [newRecord, ...current])
 
     setPatients((current) =>
       current.map((patient) =>
@@ -335,8 +409,8 @@ function App() {
               timeline: [
                 {
                   date: dateLabel,
-                  title: 'Control de placa guardado',
-                  description: `Evaluación registrada con ${evaluation.percentage}% de placa.`,
+                  title: 'Control de placa realizado',
+                  description: `Evaluacion registrada con ${evaluation.percentage}% de placa.`,
                 },
                 ...patient.timeline,
               ].slice(0, 4),
@@ -344,16 +418,8 @@ function App() {
           : patient,
       ),
     )
-    setSavedSummary({
-      patientName: selectedPatient.name,
-      date: dateLabel,
-      plaqueSurfaces: evaluation.plaqueSurfaces,
-      evaluatedSurfaces: evaluation.evaluatedSurfaces,
-      percentage: evaluation.percentage,
-      classification: evaluation.classification,
-      message: clinicalMessage,
-    })
-    setFeedback('Resumen local guardado y listo para revisión clínica.')
+    setSavedSummary(newRecord)
+    setFeedback('Resumen local guardado y agregado al historial clinico del paciente.')
   }
 
   const progressTone =
@@ -579,9 +645,22 @@ function App() {
                       <div className="clinical-card-top">
                         <div>
                           <h4>{card.title}</h4>
-                          <p>{card.description}</p>
+                          {card.title === 'Control de Placa' ? (
+                            <>
+                              <p>Seguimiento de placa y protocolos de higiene en el centro clinico.</p>
+                              <div className="clinical-inline-data">
+                                <span>Ultimo porcentaje registrado: {latestPatientControl ? `${latestPatientControl.percentage}%` : `${selectedPatient.plaque}%`}</span>
+                                <span>Ultima fecha de control: {latestPatientControl ? latestPatientControl.date : latestTimelineControl?.date ?? 'Sin registro local'}</span>
+                                <span>Estado actualizado: {latestPatientControl ? 'Actualizado' : 'Pendiente local'}</span>
+                              </div>
+                            </>
+                          ) : (
+                            <p>{card.description}</p>
+                          )}
                         </div>
-                        <span className={`status-pill ${card.accent}`}>{card.status}</span>
+                        <span className={`status-pill ${card.title === 'Control de Placa' ? (latestPatientControl ? 'updated' : 'pending') : card.accent}`}>
+                          {card.title === 'Control de Placa' ? (latestPatientControl ? 'Actualizado' : 'Pendiente') : card.status}
+                        </span>
                       </div>
                       <div className="clinical-card-footer">
                         <button type="button" className="action-btn secondary">Abrir</button>
@@ -589,6 +668,28 @@ function App() {
                     </article>
                   ))}
                 </div>
+
+                <article className="panel-card plaque-history-card">
+                  <div className="panel-title-row">
+                    <h3>Historial de Control de Placa</h3>
+                    <span className="badge">Local</span>
+                  </div>
+                  {patientPlaqueHistory.length === 0 ? (
+                    <p className="history-empty">Aun no hay controles guardados para este paciente.</p>
+                  ) : (
+                    <div className="plaque-history-list">
+                      {patientPlaqueHistory.slice(0, 6).map((record, index) => (
+                        <article key={record.id} className="plaque-history-item">
+                          <div><span>Fecha</span><strong>{record.date}</strong></div>
+                          <div><span>Porcentaje</span><strong>{record.percentage}%</strong></div>
+                          <div><span>Clasificacion</span><strong>{record.classification}</strong></div>
+                          <div><span>Tendencia simulada</span><strong>{getSimulatedTrend(record, patientPlaqueHistory[index + 1])}</strong></div>
+                          <div className="history-interpretation"><span>Interpretacion breve</span><strong>{record.interpretation}</strong></div>
+                        </article>
+                      ))}
+                    </div>
+                  )}
+                </article>
 
                 <div className="content-grid">
                   <article className="panel-card">
@@ -747,10 +848,10 @@ function App() {
                     <div><span>Fecha</span><strong>{savedSummary.date}</strong></div>
                     <div><span>Superficies con placa</span><strong>{savedSummary.plaqueSurfaces}</strong></div>
                     <div><span>Superficies evaluadas</span><strong>{savedSummary.evaluatedSurfaces}</strong></div>
-                    <div><span>Porcentaje</span><strong>{savedSummary.percentage}%</strong></div>
+                    <div><span>Porcentaje final</span><strong>{savedSummary.percentage}%</strong></div>
                     <div><span>Clasificación</span><strong>{savedSummary.classification}</strong></div>
                   </div>
-                  <p className="clinical-message">{savedSummary.message}</p>
+                  <p className="clinical-message"><strong>Interpretacion clinica:</strong> {savedSummary.interpretation}</p>
                 </article>
               )}
             </section>

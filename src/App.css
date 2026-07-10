@@ -513,6 +513,66 @@ button {
   line-height: 1.45;
 }
 
+.clinical-inline-data {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.clinical-inline-data span {
+  font-size: 0.82rem;
+  color: #44616b;
+}
+
+.plaque-history-card {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.history-empty {
+  margin: 0;
+  color: #5d7377;
+}
+
+.plaque-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.plaque-history-item {
+  border: 1px solid #dde9ec;
+  border-radius: 14px;
+  padding: 12px;
+  background: #fbfefe;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.plaque-history-item div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.plaque-history-item span {
+  color: #5d7377;
+  font-size: 0.8rem;
+}
+
+.plaque-history-item strong {
+  color: #12322f;
+  font-size: 0.88rem;
+}
+
+.plaque-history-item .history-interpretation {
+  grid-column: 1 / -1;
+}
+
 .timeline-entry {
   display: flex;
   flex-direction: column;
@@ -1026,6 +1086,10 @@ button {
 
   .saved-grid {
     grid-template-columns: 1fr;
+  }
+
+  .plaque-history-item {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 

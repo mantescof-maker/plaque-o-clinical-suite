@@ -1,4 +1,14 @@
-import { Component, useEffect, useMemo, useState, type ErrorInfo, type ReactNode } from 'react'
+import {
+  Component,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ErrorInfo,
+  type FormEvent,
+  type ReactNode,
+} from 'react'
+import type { Session } from '@supabase/supabase-js'
 import './App.css'
 import { isSupabaseConfigured, supabase } from './supabaseClient'
 
@@ -13,7 +23,7 @@ interface TimelineEvent {
 }
 
 interface Patient {
-  id: number
+  id: string
   name: string
   age: number
   sex: string
@@ -23,6 +33,7 @@ interface Patient {
   risk: string
   plaque: number
   nextVisit: string
+  insurance: string
   notes: string
   timeline: TimelineEvent[]
 }
@@ -45,8 +56,8 @@ interface ToothCardProps {
 }
 
 interface PlaqueControlRecord {
-  id: number
-  patientId: number
+  id: string
+  patientId: string
   patientName: string
   date: string
   plaqueSurfaces: number
@@ -55,6 +66,21 @@ interface PlaqueControlRecord {
   classification: string
   interpretation: string
 }
+
+interface PatientFormState {
+  fullName: string
+  age: string
+  sex: string
+  phone: string
+  email: string
+  diagnosis: string
+  riskLevel: string
+  nextAppointment: string
+  insurance: string
+  notes: string
+}
+
+type AuthMode = 'login' | 'signup'
 
 interface ErrorBoundaryState {
   hasError: boolean
@@ -93,7 +119,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
 
 const patientsSeed: Patient[] = [
   {
-    id: 1,
+    id: 'demo-1',
     name: 'Ana López',
     age: 42,
     sex: 'Femenino',
@@ -103,6 +129,7 @@ const patientsSeed: Patient[] = [
     risk: 'Medio',
     plaque: 18,
     nextVisit: '16 Jul 2026',
+    insurance: 'No registrado',
     notes: 'Respuesta adecuada a la terapia inicial y seguimiento de higiene diaria.',
     timeline: [
       { date: '09 Jul 2026', title: 'Control de placa realizado', description: 'Evaluación de biofilm con mejora clínica observable.' },
@@ -111,7 +138,7 @@ const patientsSeed: Patient[] = [
     ],
   },
   {
-    id: 2,
+    id: 'demo-2',
     name: 'Javier Romero',
     age: 57,
     sex: 'Masculino',
@@ -121,6 +148,7 @@ const patientsSeed: Patient[] = [
     risk: 'Alto',
     plaque: 31,
     nextVisit: '20 Jul 2026',
+    insurance: 'No registrado',
     notes: 'Requiere refuerzo de técnica de cepillado y control de biofilm.',
     timeline: [
       { date: '08 Jul 2026', title: 'Control de placa realizado', description: 'Se registraron múltiples superficies con placa visible.' },
@@ -129,7 +157,7 @@ const patientsSeed: Patient[] = [
     ],
   },
   {
-    id: 3,
+    id: 'demo-3',
     name: 'Marta Salas',
     age: 35,
     sex: 'Femenino',
@@ -139,6 +167,7 @@ const patientsSeed: Patient[] = [
     risk: 'Bajo',
     plaque: 9,
     nextVisit: '27 Jul 2026',
+    insurance: 'No registrado',
     notes: 'Mantenimiento periodontal en buen estado clínico con excelente adherencia.',
     timeline: [
       { date: '07 Jul 2026', title: 'Control de placa realizado', description: 'Mejora favorable y estabilidad periodontal.' },
@@ -199,6 +228,48 @@ const controlArcades = [
 ]
 
 const plaqueHistoryStorageKey = 'plaque-control-history-v1'
+
+const emptyPatient: Patient = {
+  id: '',
+  name: 'Sin paciente seleccionado',
+  age: 0,
+  sex: 'Sin datos',
+  phone: 'Sin teléfono',
+  email: 'Sin correo',
+  diagnosis: 'Sin diagnóstico',
+  risk: 'Sin clasificar',
+  plaque: 0,
+  nextVisit: 'Sin cita programada',
+  insurance: 'Sin datos',
+  notes: 'Registra o selecciona un paciente para abrir su expediente clínico.',
+  timeline: [],
+}
+
+const emptyPatientForm: PatientFormState = {
+  fullName: '',
+  age: '',
+  sex: '',
+  phone: '',
+  email: '',
+  diagnosis: '',
+  riskLevel: '',
+  nextAppointment: '',
+  insurance: '',
+  notes: '',
+}
+
+const formatDateLabel = (value: string | null | undefined) => {
+  if (!value) {
+    return 'Sin cita programada'
+  }
+
+  const date = new Date(`${value.slice(0, 10)}T12:00:00`)
+  if (Number.isNaN(date.getTime())) {
+    return value
+  }
+
+  return date.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })
+}
 
 const getSurfaceClass = (surface: SurfaceStatus): 'surface-clean' | 'surface-plaque' | 'surface-excluded' => {
   if (surface === 'plaque') {
@@ -267,54 +338,75 @@ const getSimulatedTrend = (record: PlaqueControlRecord, previousRecord?: PlaqueC
 
 function App() {
   const [activeView, setActiveView] = useState<View>('dashboard')
-  const [patients, setPatients] = useState<Patient[]>(patientsSeed)
-  const [selectedPatientId, setSelectedPatientId] = useState(patientsSeed[0].id)
+  const [patients, setPatients] = useState<Patient[]>(isSupabaseConfigured ? [] : patientsSeed)
+  const [selectedPatientId, setSelectedPatientId] = useState(isSupabaseConfigured ? '' : patientsSeed[0].id)
   const [search, setSearch] = useState('')
   const [teeth, setTeeth] = useState<Tooth[]>(() => createInitialTeeth())
   const [feedback, setFeedback] = useState('Sistema preparado para iniciar una evaluación clínica.')
   const [savedSummary, setSavedSummary] = useState<PlaqueControlRecord | null>(null)
-  const [plaqueControlHistory, setPlaqueControlHistory] = useState<PlaqueControlRecord[]>([])
-  const [supabaseStatus, setSupabaseStatus] = useState<'checking' | 'configured' | 'missing' | 'error'>(
-    isSupabaseConfigured ? 'checking' : 'missing',
-  )
-  const [authStatus, setAuthStatus] = useState<'si' | 'no'>('no')
-  const [supabaseError, setSupabaseError] = useState<string | null>(null)
+  const [plaqueControlHistory, setPlaqueControlHistory] = useState<PlaqueControlRecord[]>(() => {
+    if (isSupabaseConfigured) {
+      return []
+    }
 
-  useEffect(() => {
     try {
       const raw = window.localStorage.getItem(plaqueHistoryStorageKey)
       if (!raw) {
-        return
+        return []
       }
 
       const parsed = JSON.parse(raw) as PlaqueControlRecord[]
-      if (Array.isArray(parsed)) {
-        setPlaqueControlHistory(parsed)
-      }
+      return Array.isArray(parsed) ? parsed : []
     } catch (error) {
       console.error('No se pudo leer el historial local de placa:', error)
+      return []
     }
-  }, [])
+  })
+  const [supabaseStatus, setSupabaseStatus] = useState<'checking' | 'configured' | 'missing' | 'error'>(
+    isSupabaseConfigured ? 'checking' : 'missing',
+  )
+  const [session, setSession] = useState<Session | null>(null)
+  const [authReady, setAuthReady] = useState(!isSupabaseConfigured)
+  const [authMode, setAuthMode] = useState<AuthMode>('login')
+  const [authEmail, setAuthEmail] = useState('')
+  const [authPassword, setAuthPassword] = useState('')
+  const [authLoading, setAuthLoading] = useState(false)
+  const [authMessage, setAuthMessage] = useState<string | null>(null)
+  const [supabaseError, setSupabaseError] = useState<string | null>(null)
+  const [patientsLoading, setPatientsLoading] = useState(false)
+  const [patientsError, setPatientsError] = useState<string | null>(null)
+  const [isPatientModalOpen, setIsPatientModalOpen] = useState(false)
+  const [patientForm, setPatientForm] = useState<PatientFormState>(emptyPatientForm)
+  const [patientFormError, setPatientFormError] = useState<string | null>(null)
+  const [patientSaving, setPatientSaving] = useState(false)
+  const [controlSaving, setControlSaving] = useState(false)
 
   useEffect(() => {
+    if (session) {
+      return
+    }
+
     try {
       window.localStorage.setItem(plaqueHistoryStorageKey, JSON.stringify(plaqueControlHistory))
     } catch (error) {
       console.error('No se pudo guardar el historial local de placa:', error)
     }
-  }, [plaqueControlHistory])
+  }, [plaqueControlHistory, session])
 
   useEffect(() => {
     let isCurrent = true
 
+    const client = supabase
+
     const verifySupabaseSession = async () => {
-      if (!isSupabaseConfigured || !supabase) {
+      if (!isSupabaseConfigured || !client) {
         if (!isCurrent) {
           return
         }
 
         setSupabaseStatus('missing')
-        setAuthStatus('no')
+        setSession(null)
+        setAuthReady(true)
         setSupabaseError(null)
         return
       }
@@ -326,7 +418,7 @@ function App() {
       setSupabaseStatus('checking')
 
       try {
-        const { data, error } = await supabase.auth.getSession()
+        const { data, error } = await client.auth.getSession()
 
         if (error) {
           throw error
@@ -337,7 +429,8 @@ function App() {
         }
 
         setSupabaseStatus('configured')
-        setAuthStatus(data.session ? 'si' : 'no')
+        setSession(data.session)
+        setAuthReady(true)
         setSupabaseError(null)
       } catch (error) {
         if (!isCurrent) {
@@ -345,19 +438,151 @@ function App() {
         }
 
         setSupabaseStatus('error')
-        setAuthStatus('no')
+        setSession(null)
+        setAuthReady(true)
         setSupabaseError(error instanceof Error ? error.message : 'No se pudo verificar la sesión de Supabase.')
       }
     }
 
     void verifySupabaseSession()
 
+    const { data: authListener } = client?.auth.onAuthStateChange((_event, nextSession) => {
+      if (!isCurrent) {
+        return
+      }
+
+      setSession(nextSession)
+      setAuthReady(true)
+      setSupabaseStatus('configured')
+      setSupabaseError(null)
+    }) ?? { data: { subscription: null } }
+
     return () => {
       isCurrent = false
+      authListener.subscription?.unsubscribe()
     }
   }, [])
 
-  const selectedPatient = patients.find((patient) => patient.id === selectedPatientId) ?? patients[0]
+  const loadPatients = useCallback(async () => {
+    const userId = session?.user.id
+    if (!supabase || !userId) {
+      return
+    }
+
+    setPatientsLoading(true)
+    setPatientsError(null)
+
+    const { data, error } = await supabase
+      .from('patients')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Error cargando pacientes:', error)
+      setPatientsError(error.message)
+      setPatientsLoading(false)
+      return
+    }
+
+    const mappedPatients: Patient[] = (data ?? []).map((row) => ({
+      id: String(row.id),
+      name: row.full_name ?? 'Paciente sin nombre',
+      age: Number(row.age ?? 0),
+      sex: row.sex ?? 'Sin datos',
+      phone: row.phone ?? 'Sin teléfono',
+      email: row.email ?? 'Sin correo',
+      diagnosis: row.diagnosis ?? 'Sin diagnóstico',
+      risk: row.risk_level ?? 'Sin clasificar',
+      plaque: Number(row.last_plaque_percentage ?? 0),
+      nextVisit: formatDateLabel(row.next_appointment),
+      insurance: row.insurance ?? 'Sin datos',
+      notes: row.notes ?? 'Sin notas clínicas.',
+      timeline: [],
+    }))
+
+    setPatients(mappedPatients)
+    setSelectedPatientId((current) => (
+      mappedPatients.some((patient) => patient.id === current) ? current : mappedPatients[0]?.id ?? ''
+    ))
+    setPatientsLoading(false)
+  }, [session])
+
+  useEffect(() => {
+    if (!session) {
+      return
+    }
+
+    void Promise.resolve().then(() => loadPatients())
+  }, [loadPatients, session])
+
+  const loadPatientPlaqueHistory = useCallback(async (patientId: string) => {
+    const userId = session?.user.id
+    if (!supabase || !userId || !patientId) {
+      return
+    }
+
+    const [controlsResult, eventsResult] = await Promise.all([
+      supabase
+        .from('plaque_controls')
+        .select('*')
+        .eq('patient_id', patientId)
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('clinical_events')
+        .select('*')
+        .eq('patient_id', patientId)
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false }),
+    ])
+
+    if (controlsResult.error) {
+      console.error('Error cargando historial de placa:', controlsResult.error)
+      setPatientsError(controlsResult.error.message)
+      return
+    }
+
+    const records: PlaqueControlRecord[] = (controlsResult.data ?? []).map((row) => ({
+      id: String(row.id),
+      patientId,
+      patientName: 'Paciente',
+      date: formatDateLabel(row.control_date ?? row.created_at),
+      plaqueSurfaces: Number(row.plaque_surfaces ?? 0),
+      evaluatedSurfaces: Number(row.evaluated_surfaces ?? 0),
+      percentage: Number(row.percentage ?? 0),
+      classification: row.classification ?? 'Sin clasificar',
+      interpretation: row.interpretation ?? 'Sin interpretación registrada.',
+    }))
+
+    setPlaqueControlHistory((current) => [
+      ...current.filter((record) => record.patientId !== patientId),
+      ...records,
+    ])
+
+    if (eventsResult.error) {
+      console.error('Error cargando eventos clínicos:', eventsResult.error)
+      return
+    }
+
+    const timeline: TimelineEvent[] = (eventsResult.data ?? []).map((row) => ({
+      date: formatDateLabel(row.event_date ?? row.created_at),
+      title: row.title ?? 'Evento clínico',
+      description: row.description ?? 'Sin descripción.',
+    }))
+
+    setPatients((current) => current.map((patient) => (
+      patient.id === patientId ? { ...patient, timeline } : patient
+    )))
+  }, [session])
+
+  useEffect(() => {
+    if (session && selectedPatientId) {
+      void Promise.resolve().then(() => loadPatientPlaqueHistory(selectedPatientId))
+    }
+  }, [loadPatientPlaqueHistory, selectedPatientId, session])
+
+  const selectedPatient = patients.find((patient) => patient.id === selectedPatientId) ?? emptyPatient
 
   const filteredPatients = useMemo(() => {
     const normalized = search.trim().toLowerCase()
@@ -388,7 +613,9 @@ function App() {
       return total + surfaceValues.filter((status) => status === 'plaque').length
     }, 0)
 
-    const percentage = evaluatedSurfaces === 0 ? 0 : Math.round((plaqueSurfaces / evaluatedSurfaces) * 100)
+    const percentage = evaluatedSurfaces === 0
+      ? 0
+      : Number(((plaqueSurfaces / evaluatedSurfaces) * 100).toFixed(2))
 
     let classification = 'Excelente'
     if (percentage >= 11 && percentage <= 20) {
@@ -442,11 +669,119 @@ function App() {
     setFeedback('Evaluación reiniciada. El panel está listo para una nueva valoración.')
   }
 
-  const saveEvaluation = () => {
-    const dateLabel = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })
+  const handleAuthSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!supabase) {
+      setAuthMessage('Faltan las variables de Supabase para iniciar sesión.')
+      return
+    }
+
+    setAuthLoading(true)
+    setAuthMessage(null)
+
+    const result = authMode === 'signup'
+      ? await supabase.auth.signUp({
+          email: authEmail.trim(),
+          password: authPassword,
+          options: { emailRedirectTo: window.location.origin },
+        })
+      : await supabase.auth.signInWithPassword({
+          email: authEmail.trim(),
+          password: authPassword,
+        })
+
+    if (result.error) {
+      console.error('Error de autenticación:', result.error)
+      setAuthMessage(result.error.message)
+      setAuthLoading(false)
+      return
+    }
+
+    if (authMode === 'signup' && !result.data.session) {
+      setAuthMessage('Cuenta creada. Revisa tu correo para confirmar el acceso.')
+    } else {
+      setAuthMessage('Sesión iniciada correctamente.')
+    }
+
+    setAuthLoading(false)
+  }
+
+  const handleSignOut = async () => {
+    if (!supabase) {
+      return
+    }
+
+    const { error } = await supabase.auth.signOut()
+    if (error) {
+      setFeedback(`No se pudo cerrar sesión: ${error.message}`)
+      return
+    }
+
+    setFeedback('Sesión cerrada correctamente.')
+    setPlaqueControlHistory([])
+    setSavedSummary(null)
+  }
+
+  const handleCreatePatient = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const userId = session?.user.id
+
+    if (!supabase || !userId) {
+      setPatientFormError('No hay usuario autenticado. Inicia sesión nuevamente.')
+      return
+    }
+
+    if (!patientForm.fullName.trim()) {
+      setPatientFormError('El nombre completo es obligatorio.')
+      return
+    }
+
+    setPatientSaving(true)
+    setPatientFormError(null)
+
+    const patientPayload = {
+      user_id: userId,
+      full_name: patientForm.fullName.trim(),
+      age: patientForm.age ? Number(patientForm.age) : null,
+      sex: patientForm.sex || null,
+      phone: patientForm.phone.trim() || null,
+      email: patientForm.email.trim() || null,
+      diagnosis: patientForm.diagnosis.trim() || null,
+      risk_level: patientForm.riskLevel || null,
+      next_appointment: patientForm.nextAppointment || null,
+      insurance: patientForm.insurance.trim() || null,
+      notes: patientForm.notes.trim() || null,
+    }
+
+    const { data, error } = await supabase
+      .from('patients')
+      .insert([patientPayload])
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error guardando paciente:', error)
+      setPatientsError(error.message)
+      setPatientFormError(`No se pudo guardar el paciente: ${error.message}`)
+      setPatientSaving(false)
+      return
+    }
+
+    setPatientForm(emptyPatientForm)
+    setIsPatientModalOpen(false)
+    setPatientSaving(false)
+    setFeedback('Paciente guardado correctamente.')
+    await loadPatients()
+    if (data?.id) {
+      setSelectedPatientId(String(data.id))
+    }
+  }
+
+  const createLocalRecord = () => {
+    const dateLabel = new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })
     const interpretation = getClinicalInterpretation(evaluation.percentage)
     const newRecord: PlaqueControlRecord = {
-      id: Date.now(),
+      id: `local-${plaqueControlHistory.length + 1}`,
       patientId: selectedPatientId,
       patientName: selectedPatient.name,
       date: dateLabel,
@@ -479,6 +814,126 @@ function App() {
     )
     setSavedSummary(newRecord)
     setFeedback('Resumen local guardado y agregado al historial clinico del paciente.')
+    return newRecord
+  }
+
+  const saveEvaluation = async () => {
+    if (!isSupabaseConfigured) {
+      createLocalRecord()
+      return
+    }
+
+    const userId = session?.user.id
+    if (!supabase || !userId) {
+      setFeedback('No hay usuario autenticado. Inicia sesión nuevamente.')
+      return
+    }
+
+    if (!selectedPatient.id) {
+      setFeedback('Selecciona un paciente antes de guardar el control de placa.')
+      return
+    }
+
+    setControlSaving(true)
+    setPatientsError(null)
+
+    const today = new Date().toISOString().slice(0, 10)
+    const interpretation = getClinicalInterpretation(evaluation.percentage)
+    const controlPayload = {
+      user_id: userId,
+      patient_id: selectedPatient.id,
+      control_date: today,
+      plaque_surfaces: evaluation.plaqueSurfaces,
+      evaluated_surfaces: evaluation.evaluatedSurfaces,
+      percentage: evaluation.percentage,
+      classification: evaluation.classification,
+      interpretation,
+    }
+
+    const { data: savedControl, error: controlError } = await supabase
+      .from('plaque_controls')
+      .insert([controlPayload])
+      .select()
+      .single()
+
+    if (controlError || !savedControl) {
+      const message = controlError?.message ?? 'Supabase no devolvió el control guardado.'
+      console.error('Error guardando control de placa:', controlError)
+      setFeedback(`No se pudo guardar el control: ${message}`)
+      setControlSaving(false)
+      return
+    }
+
+    const surfaceRows = teeth.flatMap((tooth) => (
+      (Object.entries(tooth.surfaces) as Array<[SurfaceKey, SurfaceStatus]>).map(([surface, status]) => ({
+        user_id: userId,
+        patient_id: selectedPatient.id,
+        control_id: savedControl.id,
+        tooth: tooth.number,
+        surface: surface === 'L' ? 'LP' : surface,
+        status,
+      }))
+    ))
+
+    const { error: surfacesError } = await supabase.from('plaque_surfaces').insert(surfaceRows)
+    if (surfacesError) {
+      console.error('Error guardando superficies:', surfacesError)
+      setFeedback(`No se pudo guardar el control: ${surfacesError.message}`)
+      setControlSaving(false)
+      return
+    }
+
+    const { error: patientUpdateError } = await supabase
+      .from('patients')
+      .update({
+        last_plaque_percentage: evaluation.percentage,
+        last_plaque_classification: evaluation.classification,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', selectedPatient.id)
+      .eq('user_id', userId)
+
+    if (patientUpdateError) {
+      console.error('Error actualizando paciente:', patientUpdateError)
+      setFeedback(`El control se guardó, pero no se actualizó el paciente: ${patientUpdateError.message}`)
+      setControlSaving(false)
+      return
+    }
+
+    const { error: eventError } = await supabase.from('clinical_events').insert([{
+      user_id: userId,
+      patient_id: selectedPatient.id,
+      event_date: today,
+      title: 'Control de placa realizado',
+      description: `Evaluación de biofilm: ${evaluation.percentage.toFixed(2)}%. Clasificación: ${evaluation.classification}.`,
+      event_type: 'plaque_control',
+    }])
+
+    if (eventError) {
+      console.error('Error guardando evento clínico:', eventError)
+      setFeedback(`El control se guardó, pero no se creó el evento clínico: ${eventError.message}`)
+      setControlSaving(false)
+      return
+    }
+
+    const savedRecord: PlaqueControlRecord = {
+      id: String(savedControl.id),
+      patientId: selectedPatient.id,
+      patientName: selectedPatient.name,
+      date: formatDateLabel(today),
+      plaqueSurfaces: evaluation.plaqueSurfaces,
+      evaluatedSurfaces: evaluation.evaluatedSurfaces,
+      percentage: evaluation.percentage,
+      classification: evaluation.classification,
+      interpretation,
+    }
+
+    setSavedSummary(savedRecord)
+    setFeedback('Control de placa guardado correctamente.')
+    await loadPatients()
+    await loadPatientPlaqueHistory(selectedPatient.id)
+    setSelectedPatientId(selectedPatient.id)
+    setControlSaving(false)
   }
 
   const progressTone =
@@ -502,10 +957,82 @@ function App() {
         </span>
       </div>
       <p>Configuración: {isSupabaseConfigured ? 'Configurado' : 'Faltan variables'}</p>
-      <p>Usuario autenticado: {authStatus === 'si' ? 'Sí' : 'No'}</p>
+      <p>Usuario autenticado: {session ? 'Sí' : 'No'}</p>
+      {session?.user.email && <p>Cuenta activa: {session.user.email}</p>}
       {supabaseError && <p className="supabase-error">Error: {supabaseError}</p>}
     </article>
   )
+
+  if (isSupabaseConfigured && !authReady) {
+    return (
+      <div className="auth-shell">
+        <section className="auth-card auth-loading-card">
+          <div className="brand-mark">P</div>
+          <p className="eyebrow">Plaque·O Clinical Suite</p>
+          <h1>Verificando sesión clínica</h1>
+          <p>Preparando un acceso seguro a los datos del profesional.</p>
+        </section>
+      </div>
+    )
+  }
+
+  if (isSupabaseConfigured && !session) {
+    return (
+      <div className="auth-shell">
+        <section className="auth-card">
+          <div className="auth-brand">
+            <div className="brand-mark">P</div>
+            <div>
+              <p className="eyebrow">Plaque·O</p>
+              <h1>Clinical Suite</h1>
+            </div>
+          </div>
+          <div className="auth-copy">
+            <p className="eyebrow">Acceso profesional</p>
+            <h2>{authMode === 'login' ? 'Inicia sesión en tu clínica' : 'Crea tu cuenta clínica'}</h2>
+            <p>Los pacientes y evaluaciones se consultan únicamente desde tu sesión de Supabase.</p>
+          </div>
+          <form className="auth-form" onSubmit={handleAuthSubmit}>
+            <label>
+              <span>Correo electrónico</span>
+              <input
+                type="email"
+                value={authEmail}
+                onChange={(event) => setAuthEmail(event.target.value)}
+                autoComplete="email"
+                required
+              />
+            </label>
+            <label>
+              <span>Contraseña</span>
+              <input
+                type="password"
+                value={authPassword}
+                onChange={(event) => setAuthPassword(event.target.value)}
+                autoComplete={authMode === 'login' ? 'current-password' : 'new-password'}
+                minLength={6}
+                required
+              />
+            </label>
+            {authMessage && <p className="form-message">{authMessage}</p>}
+            <button type="submit" className="primary-btn" disabled={authLoading}>
+              {authLoading ? 'Procesando…' : authMode === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}
+            </button>
+          </form>
+          <button
+            type="button"
+            className="auth-mode-button"
+            onClick={() => {
+              setAuthMode((current) => current === 'login' ? 'signup' : 'login')
+              setAuthMessage(null)
+            }}
+          >
+            {authMode === 'login' ? '¿Primera vez? Crear cuenta' : 'Ya tengo cuenta'}
+          </button>
+        </section>
+      </div>
+    )
+  }
 
   return (
     <ErrorBoundary>
@@ -537,8 +1064,13 @@ function App() {
 
           <div className="sidebar-card">
             <p className="eyebrow">Sesión</p>
-            <h3>Plan de seguimiento</h3>
+            <h3>{session?.user.email ?? 'Modo demostración'}</h3>
             <p>El panel mantiene el flujo de pacientes, control de placa y alertas clínicas en una sola vista.</p>
+            {session && (
+              <button type="button" className="sidebar-signout" onClick={() => { void handleSignOut() }}>
+                Cerrar sesión
+              </button>
+            )}
           </div>
         </aside>
 
@@ -548,7 +1080,7 @@ function App() {
               <p className="eyebrow">Centro de operaciones</p>
               <h2>{activeView === 'dashboard' ? 'Dashboard clínico' : activeView === 'patients' ? 'Pacientes' : activeView === 'control' ? 'Control de Placa' : activeView === 'settings' ? 'Configuración' : 'Módulo en preparación'}</h2>
             </div>
-            <div className="topbar-chip">Hoy · 09 Jul 2026</div>
+            <div className="topbar-chip">Hoy · {new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
           </header>
 
           <div className="feedback-banner" role="status">
@@ -573,18 +1105,18 @@ function App() {
               <div className="metrics-grid">
                 <article className="metric-card">
                   <p>Pacientes activos</p>
-                  <strong>128</strong>
-                  <span>+8% vs. semana anterior</span>
+                  <strong>{patients.length}</strong>
+                  <span>{session ? 'Registros reales en Supabase' : 'Datos de demostración'}</span>
                 </article>
                 <article className="metric-card">
                   <p>Controles realizados</p>
-                  <strong>46</strong>
-                  <span>12 pendientes hoy</span>
+                  <strong>{plaqueControlHistory.length}</strong>
+                  <span>Historial disponible</span>
                 </article>
                 <article className="metric-card">
                   <p>Promedio Control de Placa</p>
-                  <strong>17%</strong>
-                  <span>Mejora continua</span>
+                  <strong>{plaqueControlHistory.length > 0 ? `${Number((plaqueControlHistory.reduce((sum, record) => sum + record.percentage, 0) / plaqueControlHistory.length).toFixed(2))}%` : '—'}</strong>
+                  <span>Promedio de controles cargados</span>
                 </article>
                 <article className="metric-card">
                   <p>Alertas clínicas</p>
@@ -627,7 +1159,16 @@ function App() {
               <div className="patient-list-card">
                 <div className="panel-title-row">
                   <h3>Pacientes</h3>
-                  <button type="button" className="primary-btn" onClick={() => { setFeedback('Nuevo paciente listo para registrar en el flujo clínico.') }}>
+                  <button
+                    type="button"
+                    className="primary-btn"
+                    disabled={!session}
+                    onClick={() => {
+                      setPatientForm(emptyPatientForm)
+                      setPatientFormError(null)
+                      setIsPatientModalOpen(true)
+                    }}
+                  >
                     Nuevo paciente
                   </button>
                 </div>
@@ -635,7 +1176,12 @@ function App() {
                   <span>Buscar</span>
                   <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre o diagnóstico" />
                 </label>
+                {patientsLoading && <p className="history-empty">Cargando pacientes…</p>}
+                {patientsError && <p className="supabase-error">Error: {patientsError}</p>}
                 <div className="patient-list">
+                  {!patientsLoading && filteredPatients.length === 0 && (
+                    <p className="history-empty">No hay pacientes registrados. Crea el primero para iniciar el seguimiento.</p>
+                  )}
                   {filteredPatients.map((patient: Patient) => (
                     <button
                       key={patient.id}
@@ -661,7 +1207,7 @@ function App() {
 
               <div className="detail-stack">
                 <article className="patient-profile-card">
-                  <div className="patient-profile-hero">
+                  <div className={`patient-profile-hero ${selectedPatient.id ? '' : 'empty-profile'}`}>
                     <div className="patient-profile-main">
                       <div className="profile-avatar-large">{selectedPatient.name.split(' ').map((part) => part[0]).slice(0, 2).join('')}</div>
                       <div className="patient-profile-identity">
@@ -677,7 +1223,7 @@ function App() {
                       </div>
                     </div>
                     <div className="patient-action-row">
-                      <button type="button" className="primary-btn" onClick={() => { setActiveView('control'); setFeedback('Se abre el control de placa desde el paciente seleccionado.') }}>
+                      <button type="button" className="primary-btn" disabled={!selectedPatient.id} onClick={() => { setActiveView('control'); setFeedback('Se abre el control de placa desde el paciente seleccionado.') }}>
                         Nuevo control de placa
                       </button>
                       <button type="button" className="secondary-btn" onClick={() => { setFeedback('Expediente clínico abierto para revisión.') }}>
@@ -751,10 +1297,10 @@ function App() {
                 <article className="panel-card plaque-history-card">
                   <div className="panel-title-row">
                     <h3>Historial de Control de Placa</h3>
-                    <span className="badge">Local</span>
+                    <span className="badge">{session ? 'Supabase' : 'Local'}</span>
                   </div>
                   {patientPlaqueHistory.length === 0 ? (
-                    <p className="history-empty">Aun no hay controles guardados para este paciente.</p>
+                    <p className="history-empty">Sin controles de placa registrados.</p>
                   ) : (
                     <div className="plaque-history-list">
                       {patientPlaqueHistory.slice(0, 6).map((record, index) => (
@@ -820,7 +1366,14 @@ function App() {
                 <div className="detail-actions">
                   <button type="button" className="secondary-btn" onClick={() => { setActiveView('patients'); setFeedback('Se devuelve al centro clínico del paciente.') }}>Volver al paciente</button>
                   <button type="button" className="secondary-btn" onClick={resetEvaluation}>Reiniciar evaluación</button>
-                  <button type="button" className="primary-btn" onClick={saveEvaluation}>Guardar evaluación</button>
+                  <button
+                    type="button"
+                    className="primary-btn"
+                    disabled={controlSaving || !selectedPatient.id}
+                    onClick={() => { void saveEvaluation() }}
+                  >
+                    {controlSaving ? 'Guardando…' : 'Guardar evaluación'}
+                  </button>
                 </div>
               </article>
 
@@ -960,6 +1513,78 @@ function App() {
             </section>
           )}
         </main>
+
+        {isPatientModalOpen && (
+          <div className="modal-backdrop" role="presentation">
+            <section className="patient-modal" role="dialog" aria-modal="true" aria-labelledby="new-patient-title">
+              <div className="panel-title-row">
+                <div>
+                  <p className="eyebrow">Expediente clínico</p>
+                  <h3 id="new-patient-title">Nuevo paciente</h3>
+                </div>
+                <button type="button" className="modal-close" onClick={() => setIsPatientModalOpen(false)} aria-label="Cerrar formulario">×</button>
+              </div>
+              <form className="patient-form" onSubmit={handleCreatePatient}>
+                <label className="field-wide">
+                  <span>Nombre completo *</span>
+                  <input value={patientForm.fullName} onChange={(event) => setPatientForm((current) => ({ ...current, fullName: event.target.value }))} required />
+                </label>
+                <label>
+                  <span>Edad</span>
+                  <input type="number" min="0" max="120" value={patientForm.age} onChange={(event) => setPatientForm((current) => ({ ...current, age: event.target.value }))} />
+                </label>
+                <label>
+                  <span>Sexo</span>
+                  <select value={patientForm.sex} onChange={(event) => setPatientForm((current) => ({ ...current, sex: event.target.value }))}>
+                    <option value="">Seleccionar</option>
+                    <option value="Femenino">Femenino</option>
+                    <option value="Masculino">Masculino</option>
+                    <option value="Otro">Otro</option>
+                    <option value="Prefiere no indicar">Prefiere no indicar</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Teléfono</span>
+                  <input type="tel" value={patientForm.phone} onChange={(event) => setPatientForm((current) => ({ ...current, phone: event.target.value }))} />
+                </label>
+                <label>
+                  <span>Correo</span>
+                  <input type="email" value={patientForm.email} onChange={(event) => setPatientForm((current) => ({ ...current, email: event.target.value }))} />
+                </label>
+                <label className="field-wide">
+                  <span>Diagnóstico periodontal</span>
+                  <input value={patientForm.diagnosis} onChange={(event) => setPatientForm((current) => ({ ...current, diagnosis: event.target.value }))} />
+                </label>
+                <label>
+                  <span>Nivel de riesgo</span>
+                  <select value={patientForm.riskLevel} onChange={(event) => setPatientForm((current) => ({ ...current, riskLevel: event.target.value }))}>
+                    <option value="">Seleccionar</option>
+                    <option value="Bajo">Bajo</option>
+                    <option value="Medio">Medio</option>
+                    <option value="Alto">Alto</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Próxima cita</span>
+                  <input type="date" value={patientForm.nextAppointment} onChange={(event) => setPatientForm((current) => ({ ...current, nextAppointment: event.target.value }))} />
+                </label>
+                <label className="field-wide">
+                  <span>Seguro</span>
+                  <input value={patientForm.insurance} onChange={(event) => setPatientForm((current) => ({ ...current, insurance: event.target.value }))} />
+                </label>
+                <label className="field-wide">
+                  <span>Notas clínicas</span>
+                  <textarea rows={4} value={patientForm.notes} onChange={(event) => setPatientForm((current) => ({ ...current, notes: event.target.value }))} />
+                </label>
+                {patientFormError && <p className="supabase-error field-wide">{patientFormError}</p>}
+                <div className="modal-actions field-wide">
+                  <button type="button" className="secondary-btn" onClick={() => setIsPatientModalOpen(false)}>Cancelar</button>
+                  <button type="submit" className="primary-btn" disabled={patientSaving}>{patientSaving ? 'Guardando…' : 'Guardar paciente'}</button>
+                </div>
+              </form>
+            </section>
+          </div>
+        )}
       </div>
     </ErrorBoundary>
   )

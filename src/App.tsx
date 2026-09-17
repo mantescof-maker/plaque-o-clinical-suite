@@ -80,7 +80,7 @@ interface PatientFormState {
   notes: string
 }
 
-type AuthMode = 'login' | 'signup'
+type AuthMode = 'login' | 'signup' | 'recovery'
 
 interface ErrorBoundaryState {
   hasError: boolean
@@ -370,6 +370,9 @@ function App() {
   const [authMode, setAuthMode] = useState<AuthMode>('login')
   const [authEmail, setAuthEmail] = useState('')
   const [authPassword, setAuthPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmNewPassword, setConfirmNewPassword] = useState('')
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false)
   const [authLoading, setAuthLoading] = useState(false)
   const [authMessage, setAuthMessage] = useState<string | null>(null)
   const [supabaseError, setSupabaseError] = useState<string | null>(null)
@@ -446,7 +449,7 @@ function App() {
 
     void verifySupabaseSession()
 
-    const { data: authListener } = client?.auth.onAuthStateChange((_event, nextSession) => {
+    const { data: authListener } = client?.auth.onAuthStateChange((event, nextSession) => {
       if (!isCurrent) {
         return
       }
@@ -455,6 +458,11 @@ function App() {
       setAuthReady(true)
       setSupabaseStatus('configured')
       setSupabaseError(null)
+
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsPasswordRecovery(true)
+        setAuthMessage(null)
+      }
     }) ?? { data: { subscription: null } }
 
     return () => {
@@ -679,6 +687,22 @@ function App() {
     setAuthLoading(true)
     setAuthMessage(null)
 
+    if (authMode === 'recovery') {
+      const { error } = await supabase.auth.resetPasswordForEmail(authEmail.trim(), {
+        redirectTo: `${window.location.origin}/?recovery=1`,
+      })
+
+      if (error) {
+        console.error('Error al solicitar la recuperación:', error)
+        setAuthMessage(error.message)
+      } else {
+        setAuthMessage('Si existe una cuenta con este correo, recibirás un enlace para restablecer la contraseña.')
+      }
+
+      setAuthLoading(false)
+      return
+    }
+
     const result = authMode === 'signup'
       ? await supabase.auth.signUp({
           email: authEmail.trim(),
@@ -698,9 +722,47 @@ function App() {
     }
 
     if (authMode === 'signup' && !result.data.session) {
-      setAuthMessage('Cuenta creada. Revisa tu correo para confirmar el acceso.')
+      const accountAlreadyExists = result.data.user?.identities?.length === 0
+      setAuthMessage(accountAlreadyExists
+        ? 'Este correo ya tiene una cuenta. Inicia sesión o recupera tu contraseña.'
+        : 'Cuenta creada. Revisa tu correo para confirmar el acceso.')
     } else {
       setAuthMessage('Sesión iniciada correctamente.')
+    }
+
+    setAuthLoading(false)
+  }
+
+  const handlePasswordUpdate = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!supabase || !session) {
+      setAuthMessage('El enlace de recuperación ya no es válido. Solicita uno nuevo.')
+      return
+    }
+
+    if (newPassword.length < 6) {
+      setAuthMessage('La nueva contraseña debe tener al menos 6 caracteres.')
+      return
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      setAuthMessage('Las contraseñas no coinciden.')
+      return
+    }
+
+    setAuthLoading(true)
+    setAuthMessage(null)
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
+
+    if (error) {
+      console.error('Error al actualizar la contraseña:', error)
+      setAuthMessage(error.message)
+    } else {
+      setNewPassword('')
+      setConfirmNewPassword('')
+      setIsPasswordRecovery(false)
+      window.history.replaceState({}, document.title, window.location.pathname)
+      setFeedback('Contraseña actualizada correctamente.')
     }
 
     setAuthLoading(false)
@@ -976,6 +1038,55 @@ function App() {
     )
   }
 
+  if (isSupabaseConfigured && isPasswordRecovery) {
+    return (
+      <div className="auth-shell">
+        <section className="auth-card">
+          <div className="auth-brand">
+            <div className="brand-mark">P</div>
+            <div>
+              <p className="eyebrow">Plaque·O</p>
+              <h1>Clinical Suite</h1>
+            </div>
+          </div>
+          <div className="auth-copy">
+            <p className="eyebrow">Recuperación de acceso</p>
+            <h2>Crea una nueva contraseña</h2>
+            <p>Elige una contraseña nueva para volver a acceder a tu información clínica.</p>
+          </div>
+          <form className="auth-form" onSubmit={handlePasswordUpdate}>
+            <label>
+              <span>Nueva contraseña</span>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(event) => setNewPassword(event.target.value)}
+                autoComplete="new-password"
+                minLength={6}
+                required
+              />
+            </label>
+            <label>
+              <span>Confirmar nueva contraseña</span>
+              <input
+                type="password"
+                value={confirmNewPassword}
+                onChange={(event) => setConfirmNewPassword(event.target.value)}
+                autoComplete="new-password"
+                minLength={6}
+                required
+              />
+            </label>
+            {authMessage && <p className="form-message">{authMessage}</p>}
+            <button type="submit" className="primary-btn" disabled={authLoading}>
+              {authLoading ? 'Guardando…' : 'Guardar contraseña'}
+            </button>
+          </form>
+        </section>
+      </div>
+    )
+  }
+
   if (isSupabaseConfigured && !session) {
     return (
       <div className="auth-shell">
@@ -989,8 +1100,8 @@ function App() {
           </div>
           <div className="auth-copy">
             <p className="eyebrow">Acceso profesional</p>
-            <h2>{authMode === 'login' ? 'Inicia sesión en tu clínica' : 'Crea tu cuenta clínica'}</h2>
-            <p>Los pacientes y evaluaciones se consultan únicamente desde tu sesión de Supabase.</p>
+            <h2>{authMode === 'login' ? 'Inicia sesión en tu clínica' : authMode === 'signup' ? 'Crea tu cuenta clínica' : 'Recupera el acceso a tu cuenta'}</h2>
+            <p>{authMode === 'recovery' ? 'Te enviaremos un enlace seguro para crear una nueva contraseña.' : 'Los pacientes y evaluaciones se consultan únicamente desde tu sesión de Supabase.'}</p>
           </div>
           <form className="auth-form" onSubmit={handleAuthSubmit}>
             <label>
@@ -1003,31 +1114,45 @@ function App() {
                 required
               />
             </label>
-            <label>
-              <span>Contraseña</span>
-              <input
-                type="password"
-                value={authPassword}
-                onChange={(event) => setAuthPassword(event.target.value)}
-                autoComplete={authMode === 'login' ? 'current-password' : 'new-password'}
-                minLength={6}
-                required
-              />
-            </label>
+            {authMode !== 'recovery' && (
+              <label>
+                <span>Contraseña</span>
+                <input
+                  type="password"
+                  value={authPassword}
+                  onChange={(event) => setAuthPassword(event.target.value)}
+                  autoComplete={authMode === 'login' ? 'current-password' : 'new-password'}
+                  minLength={6}
+                  required
+                />
+              </label>
+            )}
             {authMessage && <p className="form-message">{authMessage}</p>}
             <button type="submit" className="primary-btn" disabled={authLoading}>
-              {authLoading ? 'Procesando…' : authMode === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}
+              {authLoading ? 'Procesando…' : authMode === 'login' ? 'Iniciar sesión' : authMode === 'signup' ? 'Crear cuenta' : 'Enviar enlace de recuperación'}
             </button>
           </form>
+          {authMode === 'login' && (
+            <button
+              type="button"
+              className="auth-mode-button"
+              onClick={() => {
+                setAuthMode('recovery')
+                setAuthMessage(null)
+              }}
+            >
+              ¿Olvidaste tu contraseña?
+            </button>
+          )}
           <button
             type="button"
             className="auth-mode-button"
             onClick={() => {
-              setAuthMode((current) => current === 'login' ? 'signup' : 'login')
+              setAuthMode((current) => current === 'signup' ? 'login' : 'signup')
               setAuthMessage(null)
             }}
           >
-            {authMode === 'login' ? '¿Primera vez? Crear cuenta' : 'Ya tengo cuenta'}
+            {authMode === 'signup' ? 'Ya tengo cuenta' : authMode === 'recovery' ? 'Volver a iniciar sesión' : '¿Primera vez? Crear cuenta'}
           </button>
         </section>
       </div>

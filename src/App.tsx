@@ -415,6 +415,7 @@ function App() {
   const [patientFormError, setPatientFormError] = useState<string | null>(null)
   const [patientSaving, setPatientSaving] = useState(false)
   const [controlSaving, setControlSaving] = useState(false)
+  const [periodontogramSaving, setPeriodontogramSaving] = useState(false)
   const [periodontalTeeth, setPeriodontalTeeth] = useState<Record<string, PeriodontalToothState>>(() => createInitialPeriodontalTeeth())
   const [selectedPeriodontalTooth, setSelectedPeriodontalTooth] = useState('16')
   const [periodontalRisk, setPeriodontalRisk] = useState<PeriodontalRiskState>({ boneLoss: '', toothLoss: '0', smoking: 'unknown', hba1c: '', complexity: [] })
@@ -737,6 +738,27 @@ function App() {
 
   const updatePeriodontalTooth = (field: keyof Omit<PeriodontalToothState, 'sites'>, value: string | boolean) => {
     setPeriodontalTeeth((current) => ({ ...current, [selectedPeriodontalTooth]: { ...current[selectedPeriodontalTooth], [field]: value } }))
+  }
+
+  const savePeriodontogramDraft = async () => {
+    if (!supabase || !session?.user.id || !selectedPatient.id) { setFeedback('Selecciona un paciente con una sesión activa antes de guardar el periodontograma.'); return }
+    setPeriodontogramSaving(true)
+    const userId = session.user.id
+    const { data: exam, error: examError } = await supabase.from('periodontal_exams').insert([{
+      user_id: userId, patient_id: selectedPatient.id, exam_date: new Date().toISOString().slice(0, 10),
+      radiographic_bone_loss_percent: periodontalRisk.boneLoss === '' ? null : Number(periodontalRisk.boneLoss),
+      periodontitis_tooth_loss: Number(periodontalRisk.toothLoss || 0), smoking_category: periodontalRisk.smoking,
+      diabetes_hba1c: periodontalRisk.hba1c === '' ? null : Number(periodontalRisk.hba1c), complexity_flags: periodontalRisk.complexity,
+    }]).select().single()
+    if (examError || !exam) { setFeedback(`No se pudo guardar el periodontograma: ${examError?.message ?? 'sin respuesta de la base de datos'}`); setPeriodontogramSaving(false); return }
+    const toothRows = Object.entries(periodontalTeeth).map(([tooth, value]) => ({ user_id: userId, patient_id: selectedPatient.id, exam_id: exam.id, tooth, mobility: Number(value.mobility), furcation: Number(value.furcation), implant: value.implant, prognosis: value.prognosis, gingival_width: value.gingivalWidth === '' ? null : Number(value.gingivalWidth) }))
+    const siteRows = Object.entries(periodontalTeeth).flatMap(([tooth, value]) => periodontalSiteKeys.flatMap((site) => { const row = value.sites[site]; return row.probingDepth === '' ? [] : [{ user_id: userId, patient_id: selectedPatient.id, exam_id: exam.id, tooth, site, probing_depth: Number(row.probingDepth), recession: row.recession === '' ? 0 : Number(row.recession), bleeding: row.bleeding, suppuration: row.suppuration, plaque: row.plaque, note: row.note || null }] }))
+    const [toothResult, siteResult, versionResult] = await Promise.all([supabase.from('periodontal_teeth').insert(toothRows), supabase.from('periodontal_sites').insert(siteRows), supabase.from('classification_versions').select('id').eq('code', 'AAP_EFP_2018').maybeSingle()])
+    if (toothResult.error || siteResult.error) { setFeedback(`El examen se creó, pero faltó guardar parte del detalle: ${(toothResult.error ?? siteResult.error)?.message}`); setPeriodontogramSaving(false); return }
+    const diagnosis = `Propuesta periodontal: ${periodontalSummary.stage}; ${periodontalSummary.grade}. ${periodontalSummary.status}.`
+    const { error: diagnosisError } = await supabase.from('periodontal_diagnoses').insert([{ user_id: userId, patient_id: selectedPatient.id, exam_id: exam.id, classification_version_id: versionResult.data?.id ?? null, status: 'suggested', diagnosis, stage: periodontalSummary.stage, grade: periodontalSummary.grade, extent: 'Pendiente de confirmación clínica', peri_implant_assessment: 'Pendiente de evaluación específica de implantes', rationale: [`${periodontalSummary.measured} sitios medidos`, `PS máxima: ${periodontalSummary.deepest} mm`, `Versión AAP_EFP_2018`] }])
+    setPeriodontogramSaving(false)
+    setFeedback(diagnosisError ? `El examen se guardó; no se pudo guardar la propuesta: ${diagnosisError.message}` : 'Periodontograma y propuesta clínica guardados como borrador pendiente de confirmación profesional.')
   }
 
   const setSurfaceStatus = (toothNumber: string, surfaceKey: SurfaceKey) => {
@@ -1800,7 +1822,7 @@ function App() {
             return <section className="view-section periodontogram-view">
               <article className="control-patient-card compact-header">
                 <div><p className="eyebrow">Registro periodontal · SEPA</p><h3>{selectedPatient.name}</h3><p>Seis sitios por diente. El margen gingival se registra en mm; valor positivo = recesión.</p></div>
-                <div className="detail-actions"><button type="button" className="secondary-btn" onClick={() => setActiveView('patients')}>Volver al paciente</button><button type="button" className="primary-btn" onClick={() => setFeedback('La propuesta se revisa clínicamente antes de confirmar y guardar el diagnóstico.')}>Revisar propuesta</button></div>
+                <div className="detail-actions"><button type="button" className="secondary-btn" onClick={() => setActiveView('patients')}>Volver al paciente</button><button type="button" className="primary-btn" disabled={periodontogramSaving || !selectedPatient.id} onClick={() => { void savePeriodontogramDraft() }}>{periodontogramSaving ? 'Guardando…' : 'Guardar borrador'}</button></div>
               </article>
 
               <article className="panel-card periodontal-proposal">

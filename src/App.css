@@ -574,6 +574,18 @@ button {
   grid-column: 1 / -1;
 }
 
+.history-open-button {
+  grid-column: 1 / -1;
+  justify-self: start;
+  border: 1px solid #b8d7d2;
+  border-radius: 9px;
+  padding: 8px 11px;
+  background: #f4fbf9;
+  color: #176f76;
+  font-weight: 750;
+  cursor: pointer;
+}
+
 .timeline-entry {
   display: flex;
   flex-direction: column;

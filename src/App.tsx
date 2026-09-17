@@ -197,6 +197,13 @@ const createInitialTeeth = (): Tooth[] =>
     },
   }))
 
+const createTeethForAbsentTeeth = (absentTeeth: string[]): Tooth[] =>
+  createInitialTeeth().map((tooth) => (
+    absentTeeth.includes(tooth.number)
+      ? { ...tooth, surfaces: { V: 'excluded', L: 'excluded', M: 'excluded', D: 'excluded' } }
+      : tooth
+  ))
+
 const navItems: Array<{ label: string; view: View }> = [
   { label: 'Dashboard', view: 'dashboard' },
   { label: 'Pacientes', view: 'patients' },
@@ -352,6 +359,7 @@ function App() {
   const [selectedPatientId, setSelectedPatientId] = useState(isSupabaseConfigured ? '' : patientsSeed[0].id)
   const [search, setSearch] = useState('')
   const [teeth, setTeeth] = useState<Tooth[]>(() => createInitialTeeth())
+  const [absentTeeth, setAbsentTeeth] = useState<string[]>([])
   const [feedback, setFeedback] = useState('Sistema preparado para iniciar una evaluación clínica.')
   const [savedSummary, setSavedSummary] = useState<PlaqueControlRecord | null>(null)
   const [plaqueControlHistory, setPlaqueControlHistory] = useState<PlaqueControlRecord[]>(() => {
@@ -594,11 +602,37 @@ function App() {
     )))
   }, [session])
 
+  const loadPatientAbsentTeeth = useCallback(async (patientId: string) => {
+    const userId = session?.user.id
+    if (!isSupabaseConfigured || !supabase || !userId || !patientId) {
+      setAbsentTeeth([])
+      setTeeth(createInitialTeeth())
+      return
+    }
+
+    const { data, error } = await supabase
+      .from('patient_absent_teeth')
+      .select('tooth')
+      .eq('patient_id', patientId)
+      .eq('user_id', userId)
+
+    if (error) {
+      console.error('Error cargando dientes ausentes:', error)
+      setFeedback(`No se pudieron cargar los dientes ausentes: ${error.message}`)
+      return
+    }
+
+    const records = (data ?? []).map((row) => String(row.tooth))
+    setAbsentTeeth(records)
+    setTeeth(createTeethForAbsentTeeth(records))
+  }, [session])
+
   useEffect(() => {
     if (session && selectedPatientId) {
       void Promise.resolve().then(() => loadPatientPlaqueHistory(selectedPatientId))
+      void Promise.resolve().then(() => loadPatientAbsentTeeth(selectedPatientId))
     }
-  }, [loadPatientPlaqueHistory, selectedPatientId, session])
+  }, [loadPatientAbsentTeeth, loadPatientPlaqueHistory, selectedPatientId, session])
 
   const selectedPatient = patients.find((patient) => patient.id === selectedPatientId) ?? emptyPatient
 
@@ -681,27 +715,44 @@ function App() {
     )
   }
 
-  const toggleToothAbsence = (toothNumber: string) => {
-    setTeeth((current) => current.map((tooth) => {
-      if (tooth.number !== toothNumber) {
-        return tooth
-      }
+  const toggleToothAbsence = async (toothNumber: string) => {
+    const isAbsent = absentTeeth.includes(toothNumber)
+    const userId = session?.user.id
 
-      const isAbsent = Object.values(tooth.surfaces).every((status) => status === 'excluded')
-      return {
-        ...tooth,
-        surfaces: {
-          V: isAbsent ? 'clean' : 'excluded',
-          L: isAbsent ? 'clean' : 'excluded',
-          M: isAbsent ? 'clean' : 'excluded',
-          D: isAbsent ? 'clean' : 'excluded',
-        },
+    if (isSupabaseConfigured && (!supabase || !userId || !selectedPatient.id)) {
+      setFeedback('Selecciona un paciente con una sesión activa antes de registrar una ausencia dental.')
+      return
+    }
+
+    if (isSupabaseConfigured && supabase && userId) {
+      const result = isAbsent
+        ? await supabase
+            .from('patient_absent_teeth')
+            .delete()
+            .eq('patient_id', selectedPatient.id)
+            .eq('user_id', userId)
+            .eq('tooth', toothNumber)
+        : await supabase
+            .from('patient_absent_teeth')
+            .insert([{ user_id: userId, patient_id: selectedPatient.id, tooth: toothNumber }])
+
+      if (result.error) {
+        console.error('Error actualizando ausencia dental:', result.error)
+        setFeedback(`No se pudo actualizar el diente ausente: ${result.error.message}`)
+        return
       }
-    }))
+    }
+
+    const nextAbsentTeeth = isAbsent
+      ? absentTeeth.filter((tooth) => tooth !== toothNumber)
+      : [...absentTeeth, toothNumber]
+    setAbsentTeeth(nextAbsentTeeth)
+    setTeeth(createTeethForAbsentTeeth(nextAbsentTeeth))
+    setFeedback(isAbsent ? `Diente ${toothNumber} restaurado para evaluación.` : `Diente ${toothNumber} marcado como ausente.`)
   }
 
   const resetEvaluation = () => {
-    setTeeth(createInitialTeeth())
+    setTeeth(createTeethForAbsentTeeth(absentTeeth))
     setSavedSummary(null)
     setFeedback('Evaluación reiniciada. El panel está listo para una nueva valoración.')
   }
@@ -1025,6 +1076,52 @@ function App() {
     await loadPatientPlaqueHistory(selectedPatient.id)
     setSelectedPatientId(selectedPatient.id)
     setControlSaving(false)
+  }
+
+  const openSavedControl = async (record: PlaqueControlRecord) => {
+    if (!isSupabaseConfigured || !supabase || record.id.startsWith('local-')) {
+      setSavedSummary(record)
+      setActiveView('control')
+      setFeedback('Control local abierto para consulta.')
+      return
+    }
+
+    const userId = session?.user.id
+    if (!userId) {
+      setFeedback('Inicia sesión nuevamente para abrir este control.')
+      return
+    }
+
+    const { data, error } = await supabase
+      .from('plaque_surfaces')
+      .select('tooth, surface, status')
+      .eq('control_id', record.id)
+      .eq('user_id', userId)
+
+    if (error) {
+      console.error('Error abriendo control de placa:', error)
+      setFeedback(`No se pudo abrir el control: ${error.message}`)
+      return
+    }
+
+    const restoredTeeth = createInitialTeeth().map((tooth) => ({
+      ...tooth,
+      surfaces: { ...tooth.surfaces },
+    }))
+
+    for (const row of data ?? []) {
+      const tooth = restoredTeeth.find((item) => item.number === row.tooth)
+      const surface = row.surface === 'LP' ? 'L' : row.surface
+      const status = row.status as SurfaceStatus
+      if (tooth && ['V', 'L', 'M', 'D'].includes(surface) && ['clean', 'plaque', 'excluded'].includes(status)) {
+        tooth.surfaces[surface as SurfaceKey] = status
+      }
+    }
+
+    setTeeth(restoredTeeth)
+    setSavedSummary(record)
+    setActiveView('control')
+    setFeedback(`Control del ${record.date} abierto en modo consulta. Puedes iniciar una nueva evaluación al reiniciarlo.`)
   }
 
   const progressTone =
@@ -1464,6 +1561,9 @@ function App() {
                           <div><span>Clasificacion</span><strong>{record.classification}</strong></div>
                           <div><span>Tendencia simulada</span><strong>{getSimulatedTrend(record, patientPlaqueHistory[index + 1])}</strong></div>
                           <div className="history-interpretation"><span>Interpretacion breve</span><strong>{record.interpretation}</strong></div>
+                          <button type="button" className="history-open-button" onClick={() => { void openSavedControl(record) }}>
+                            Abrir control
+                          </button>
                         </article>
                       ))}
                     </div>
@@ -1600,7 +1700,7 @@ function App() {
                                 key={number}
                                 tooth={tooth.number}
                                 isRightQuadrant={isRightQuadrant(tooth.number)}
-                                isAbsent={Object.values(tooth.surfaces).every((status) => status === 'excluded')}
+                                isAbsent={absentTeeth.includes(tooth.number)}
                                 surfaces={{
                                   V: tooth.surfaces.V,
                                   M: tooth.surfaces.M,

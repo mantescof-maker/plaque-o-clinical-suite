@@ -107,10 +107,16 @@ button {
 .sidebar-card {
   color: #1f3d3c;
   padding: 16px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .sidebar-card h3 {
   margin: 0 0 6px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  font-size: 0.95rem;
+  line-height: 1.35;
 }
 
 .sidebar-card p {
@@ -891,25 +897,26 @@ button {
 }
 
 .tooth-card {
-  width: 104px;
-  height: 104px;
-  min-width: 96px;
-  min-height: 96px;
+  box-sizing: border-box;
+  width: 112px;
+  height: 112px;
+  min-width: 112px;
+  min-height: 112px;
   display: grid;
-  grid-template-columns: 30px 42px 30px;
-  grid-template-rows: 28px 42px 28px;
+  grid-template-columns: 28px 42px 28px;
+  grid-template-rows: 26px 42px 26px;
   grid-template-areas:
     ". v ."
     "m number d"
     ". lp .";
   align-items: center;
   justify-items: center;
-  padding: 10px;
+  padding: 6px;
   border: 1px solid rgba(15, 61, 55, 0.14);
   border-radius: 22px;
   background: rgba(255, 255, 255, 0.92);
   box-shadow: 0 14px 30px rgba(15, 61, 55, 0.08);
-  overflow: visible;
+  overflow: hidden;
 }
 
 .surface-button {

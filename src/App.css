@@ -822,6 +822,10 @@ button {
   background: #7a8790;
 }
 
+.legend-dot.absent {
+  background: #253b43;
+}
+
 .quadrants-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -948,6 +952,23 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
+}
+
+.tooth-card-absent {
+  border-color: rgba(37, 59, 67, 0.34);
+  background: #eef2f3;
+}
+
+.tooth-card-absent .tooth-number {
+  border-color: #253b43;
+  background: #253b43;
+  color: #ffffff;
+  font-size: 22px;
+}
+
+.tooth-card-absent .surface-button {
+  background: #7b8794;
 }
 
 .surface-clean {
@@ -1063,6 +1084,35 @@ button:disabled {
     radial-gradient(circle at top left, rgba(47, 158, 109, 0.22), transparent 38%),
     radial-gradient(circle at bottom right, rgba(20, 122, 143, 0.2), transparent 36%),
     #f3f8f7;
+}
+
+@media (min-width: 900px) {
+  .auth-shell {
+    grid-template-columns: minmax(360px, 520px) minmax(400px, 500px);
+    gap: clamp(48px, 8vw, 120px);
+    justify-content: center;
+    align-content: center;
+    padding: 48px;
+  }
+
+  .auth-shell::before {
+    content: "PLAQUE·O CLINICAL SUITE\A\A Gestión clínica segura\Apara tu consultorio dental.\A\A Pacientes, valoraciones y seguimiento\Aen una sola plataforma.";
+    white-space: pre-line;
+    color: #173d40;
+    font-size: 1.1rem;
+    line-height: 1.7;
+    max-width: 440px;
+    padding: 58px;
+    border-radius: 32px;
+    background:
+      linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(226, 244, 238, 0.84)),
+      #eff8f5;
+    box-shadow: 0 28px 70px rgba(15, 52, 56, 0.1);
+  }
+
+  .auth-card {
+    width: min(100%, 470px);
+  }
 }
 
 .auth-card {

@@ -46,6 +46,7 @@ interface Tooth {
 interface ToothCardProps {
   tooth: string
   isRightQuadrant: boolean
+  isAbsent: boolean
   surfaces: {
     V: SurfaceStatus
     M: SurfaceStatus
@@ -53,6 +54,7 @@ interface ToothCardProps {
     LP: SurfaceStatus
   }
   onSurfaceClick: (tooth: string, surface: 'V' | 'M' | 'D' | 'LP') => void
+  onAbsenceToggle: (tooth: string) => void
 }
 
 interface PlaqueControlRecord {
@@ -283,18 +285,26 @@ const getSurfaceClass = (surface: SurfaceStatus): 'surface-clean' | 'surface-pla
   return 'surface-clean'
 }
 
-function ToothCard({ tooth, isRightQuadrant, surfaces, onSurfaceClick }: ToothCardProps) {
+function ToothCard({ tooth, isRightQuadrant, isAbsent, surfaces, onSurfaceClick, onAbsenceToggle }: ToothCardProps) {
   return (
-    <div className={`tooth-card ${isRightQuadrant ? 'tooth-card-right-quadrant' : 'tooth-card-left-quadrant'}`}>
-      <button type="button" className={`surface-button surface-v ${getSurfaceClass(surfaces.V)}`} onClick={() => onSurfaceClick(tooth, 'V')}>V</button>
+    <div className={`tooth-card ${isAbsent ? 'tooth-card-absent' : ''} ${isRightQuadrant ? 'tooth-card-right-quadrant' : 'tooth-card-left-quadrant'}`}>
+      <button type="button" className={`surface-button surface-v ${getSurfaceClass(surfaces.V)}`} disabled={isAbsent} onClick={() => onSurfaceClick(tooth, 'V')}>V</button>
 
-      <button type="button" className={`surface-button surface-m ${getSurfaceClass(surfaces.M)}`} onClick={() => onSurfaceClick(tooth, 'M')}>M</button>
+      <button type="button" className={`surface-button surface-m ${getSurfaceClass(surfaces.M)}`} disabled={isAbsent} onClick={() => onSurfaceClick(tooth, 'M')}>M</button>
 
-      <div className="tooth-number">{tooth}</div>
+      <button
+        type="button"
+        className="tooth-number"
+        aria-pressed={isAbsent}
+        title={isAbsent ? `Restaurar diente ${tooth}` : `Marcar diente ${tooth} como ausente`}
+        onClick={() => onAbsenceToggle(tooth)}
+      >
+        {isAbsent ? '×' : tooth}
+      </button>
 
-      <button type="button" className={`surface-button surface-d ${getSurfaceClass(surfaces.D)}`} onClick={() => onSurfaceClick(tooth, 'D')}>D</button>
+      <button type="button" className={`surface-button surface-d ${getSurfaceClass(surfaces.D)}`} disabled={isAbsent} onClick={() => onSurfaceClick(tooth, 'D')}>D</button>
 
-      <button type="button" className={`surface-button surface-lp ${getSurfaceClass(surfaces.LP)}`} onClick={() => onSurfaceClick(tooth, 'LP')}>L/P</button>
+      <button type="button" className={`surface-button surface-lp ${getSurfaceClass(surfaces.LP)}`} disabled={isAbsent} onClick={() => onSurfaceClick(tooth, 'LP')}>L/P</button>
     </div>
   )
 }
@@ -669,6 +679,25 @@ function App() {
         }
       }),
     )
+  }
+
+  const toggleToothAbsence = (toothNumber: string) => {
+    setTeeth((current) => current.map((tooth) => {
+      if (tooth.number !== toothNumber) {
+        return tooth
+      }
+
+      const isAbsent = Object.values(tooth.surfaces).every((status) => status === 'excluded')
+      return {
+        ...tooth,
+        surfaces: {
+          V: isAbsent ? 'clean' : 'excluded',
+          L: isAbsent ? 'clean' : 'excluded',
+          M: isAbsent ? 'clean' : 'excluded',
+          D: isAbsent ? 'clean' : 'excluded',
+        },
+      }
+    }))
   }
 
   const resetEvaluation = () => {
@@ -1541,6 +1570,7 @@ function App() {
                 <span><i className="legend-dot clean" />Sin placa</span>
                 <span><i className="legend-dot plaque" />Con placa</span>
                 <span><i className="legend-dot excluded" />Excluida</span>
+                <span><i className="legend-dot absent" />Ausente (pulsa el número)</span>
               </div>
 
               {controlArcades.map((arcade) => (
@@ -1570,6 +1600,7 @@ function App() {
                                 key={number}
                                 tooth={tooth.number}
                                 isRightQuadrant={isRightQuadrant(tooth.number)}
+                                isAbsent={Object.values(tooth.surfaces).every((status) => status === 'excluded')}
                                 surfaces={{
                                   V: tooth.surfaces.V,
                                   M: tooth.surfaces.M,
@@ -1584,6 +1615,7 @@ function App() {
 
                                   setSurfaceStatus(toothNumber, surface)
                                 }}
+                                onAbsenceToggle={toggleToothAbsence}
                               />
                             )
                           })}

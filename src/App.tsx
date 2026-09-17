@@ -12,9 +12,15 @@ import type { Session } from '@supabase/supabase-js'
 import './App.css'
 import { isSupabaseConfigured, supabase } from './supabaseClient'
 
-type View = 'dashboard' | 'patients' | 'control' | 'settings' | 'placeholder'
+type View = 'dashboard' | 'patients' | 'control' | 'periodontogram' | 'settings' | 'placeholder'
 type SurfaceStatus = 'clean' | 'plaque' | 'excluded'
 type SurfaceKey = 'V' | 'L' | 'M' | 'D'
+type PeriodontalSiteKey = 'B-M' | 'B-C' | 'B-D' | 'L-M' | 'L-C' | 'L-D'
+type SmokingCategory = 'unknown' | 'none' | 'less_than_10_cigarettes_day' | '10_or_more_cigarettes_day'
+
+interface PeriodontalSiteState { probingDepth: string; recession: string; bleeding: boolean; suppuration: boolean; plaque: boolean; note: string }
+interface PeriodontalToothState { mobility: string; furcation: string; implant: boolean; prognosis: string; gingivalWidth: string; sites: Record<PeriodontalSiteKey, PeriodontalSiteState> }
+interface PeriodontalRiskState { boneLoss: string; toothLoss: string; smoking: SmokingCategory; hba1c: string; complexity: string[] }
 
 interface TimelineEvent {
   date: string
@@ -204,10 +210,18 @@ const createTeethForAbsentTeeth = (absentTeeth: string[]): Tooth[] =>
       : tooth
   ))
 
+const periodontalSiteKeys: PeriodontalSiteKey[] = ['B-M', 'B-C', 'B-D', 'L-M', 'L-C', 'L-D']
+const createPeriodontalSite = (): PeriodontalSiteState => ({ probingDepth: '', recession: '', bleeding: false, suppuration: false, plaque: false, note: '' })
+const createInitialPeriodontalTeeth = (): Record<string, PeriodontalToothState> => Object.fromEntries(toothOrder.map((tooth) => [tooth, {
+  mobility: '0', furcation: '0', implant: false, prognosis: 'Bueno', gingivalWidth: '',
+  sites: Object.fromEntries(periodontalSiteKeys.map((site) => [site, createPeriodontalSite()])) as Record<PeriodontalSiteKey, PeriodontalSiteState>,
+}]))
+
 const navItems: Array<{ label: string; view: View }> = [
   { label: 'Dashboard', view: 'dashboard' },
   { label: 'Pacientes', view: 'patients' },
   { label: 'Control de Placa', view: 'control' },
+  { label: 'Periodontograma', view: 'periodontogram' },
   { label: 'Fotografías', view: 'placeholder' },
   { label: 'Reportes', view: 'placeholder' },
   { label: 'Configuración', view: 'settings' },
@@ -401,6 +415,9 @@ function App() {
   const [patientFormError, setPatientFormError] = useState<string | null>(null)
   const [patientSaving, setPatientSaving] = useState(false)
   const [controlSaving, setControlSaving] = useState(false)
+  const [periodontalTeeth, setPeriodontalTeeth] = useState<Record<string, PeriodontalToothState>>(() => createInitialPeriodontalTeeth())
+  const [selectedPeriodontalTooth, setSelectedPeriodontalTooth] = useState('16')
+  const [periodontalRisk, setPeriodontalRisk] = useState<PeriodontalRiskState>({ boneLoss: '', toothLoss: '0', smoking: 'unknown', hba1c: '', complexity: [] })
 
   useEffect(() => {
     if (session) {
@@ -689,6 +706,38 @@ function App() {
   const toothLookup = useMemo(() => {
     return Object.fromEntries(teeth.map((tooth) => [tooth.number, tooth])) as Record<string, Tooth>
   }, [teeth])
+
+  const periodontalSummary = useMemo(() => {
+    const sites = Object.values(periodontalTeeth).flatMap((tooth) => Object.values(tooth.sites))
+    const measured = sites.filter((site) => site.probingDepth !== '')
+    const depths = measured.map((site) => Number(site.probingDepth)).filter((value) => Number.isFinite(value))
+    const bleeding = measured.filter((site) => site.bleeding).length
+    const plaque = measured.filter((site) => site.plaque).length
+    const deepest = depths.length ? Math.max(...depths) : 0
+    const average = depths.length ? Number((depths.reduce((sum, value) => sum + value, 0) / depths.length).toFixed(1)) : 0
+    const boneLoss = Number(periodontalRisk.boneLoss)
+    const toothLoss = Number(periodontalRisk.toothLoss || 0)
+    const complexity = periodontalRisk.complexity.length > 0
+    const hasRiskData = periodontalRisk.boneLoss !== '' && periodontalRisk.smoking !== 'unknown'
+    let stage = 'No estimable'
+    if (boneLoss > 0 || deepest >= 4) stage = 'Estadio I (provisional)'
+    if (boneLoss >= 15 || deepest >= 5) stage = 'Estadio II (provisional)'
+    if (boneLoss >= 33 || toothLoss <= 4 && toothLoss > 0 || complexity) stage = 'Estadio III (provisional)'
+    if (toothLoss >= 5) stage = 'Estadio IV (provisional)'
+    let grade = 'Grado B (provisional)'
+    if (periodontalRisk.smoking === '10_or_more_cigarettes_day' || Number(periodontalRisk.hba1c) >= 7) grade = 'Grado C (modificador de riesgo)'
+    if (periodontalRisk.smoking === 'none' && periodontalRisk.hba1c === '' && boneLoss > 0 && boneLoss < 15) grade = 'Grado A (provisional)'
+    const status = measured.length === 0 ? 'Faltan registros de sondaje' : !hasRiskData ? 'Información clínica incompleta' : 'Propuesta lista para revisión'
+    return { measured: measured.length, deepest, average, bleeding, plaque, stage, grade, status }
+  }, [periodontalRisk, periodontalTeeth])
+
+  const updatePeriodontalSite = (site: PeriodontalSiteKey, field: keyof PeriodontalSiteState, value: string | boolean) => {
+    setPeriodontalTeeth((current) => ({ ...current, [selectedPeriodontalTooth]: { ...current[selectedPeriodontalTooth], sites: { ...current[selectedPeriodontalTooth].sites, [site]: { ...current[selectedPeriodontalTooth].sites[site], [field]: value } } } }))
+  }
+
+  const updatePeriodontalTooth = (field: keyof Omit<PeriodontalToothState, 'sites'>, value: string | boolean) => {
+    setPeriodontalTeeth((current) => ({ ...current, [selectedPeriodontalTooth]: { ...current[selectedPeriodontalTooth], [field]: value } }))
+  }
 
   const setSurfaceStatus = (toothNumber: string, surfaceKey: SurfaceKey) => {
     setTeeth((current) =>
@@ -1329,7 +1378,7 @@ function App() {
           <header className="topbar">
             <div>
               <p className="eyebrow">Centro de operaciones</p>
-              <h2>{activeView === 'dashboard' ? 'Dashboard clínico' : activeView === 'patients' ? 'Pacientes' : activeView === 'control' ? 'Control de Placa' : activeView === 'settings' ? 'Configuración' : 'Módulo en preparación'}</h2>
+              <h2>{activeView === 'dashboard' ? 'Dashboard clínico' : activeView === 'patients' ? 'Pacientes' : activeView === 'control' ? 'Control de Placa' : activeView === 'periodontogram' ? 'Periodontograma' : activeView === 'settings' ? 'Configuración' : 'Módulo en preparación'}</h2>
             </div>
             <div className="topbar-chip">Hoy · {new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
           </header>
@@ -1745,6 +1794,38 @@ function App() {
               )}
             </section>
           )}
+
+          {activeView === 'periodontogram' && (() => {
+            const activeTooth = periodontalTeeth[selectedPeriodontalTooth]
+            return <section className="view-section periodontogram-view">
+              <article className="control-patient-card compact-header">
+                <div><p className="eyebrow">Registro periodontal · SEPA</p><h3>{selectedPatient.name}</h3><p>Seis sitios por diente. El margen gingival se registra en mm; valor positivo = recesión.</p></div>
+                <div className="detail-actions"><button type="button" className="secondary-btn" onClick={() => setActiveView('patients')}>Volver al paciente</button><button type="button" className="primary-btn" onClick={() => setFeedback('La propuesta se revisa clínicamente antes de confirmar y guardar el diagnóstico.')}>Revisar propuesta</button></div>
+              </article>
+
+              <article className="panel-card periodontal-proposal">
+                <div className="panel-title-row"><div><p className="eyebrow">Asistente clínico · AAP/EFP 2018</p><h3>Propuesta diagnóstica — pendiente de confirmación profesional</h3></div><span className="badge muted">{periodontalSummary.status}</span></div>
+                <div className="control-summary-grid">
+                  <article className="metric-card compact"><p>Sitios registrados</p><strong>{periodontalSummary.measured}/192</strong></article>
+                  <article className="metric-card compact"><p>PS máxima</p><strong>{periodontalSummary.deepest || '—'} mm</strong></article>
+                  <article className="metric-card compact"><p>PS media</p><strong>{periodontalSummary.average || '—'} mm</strong></article>
+                  <article className="metric-card compact"><p>Sangrado al sondaje</p><strong>{periodontalSummary.measured ? `${Math.round(periodontalSummary.bleeding / periodontalSummary.measured * 100)}%` : '—'}</strong></article>
+                </div>
+                <div className="diagnosis-grid"><div><span>Estadio</span><strong>{periodontalSummary.stage}</strong></div><div><span>Grado</span><strong>{periodontalSummary.grade}</strong></div><div><span>Biofilm en sitios medidos</span><strong>{periodontalSummary.measured ? `${Math.round(periodontalSummary.plaque / periodontalSummary.measured * 100)}%` : '—'}</strong></div></div>
+                <p className="clinical-message">Esta propuesta usa la versión <strong>AAP_EFP_2018</strong>. No sustituye la valoración clínica, radiográfica ni el juicio profesional; una actualización futura conservará la versión utilizada en cada registro.</p>
+              </article>
+
+              <div className="periodontal-workspace">
+                <article className="panel-card tooth-selector-card"><div className="panel-title-row"><h3>Mapa dental</h3><span className="badge muted">Selecciona un diente</span></div><div className="periodontal-tooth-map">{controlQuadrants.map((quadrant) => <div key={quadrant.title} className="periodontal-quadrant"><span>{quadrant.title}</span><div>{quadrant.teeth.map((tooth) => <button type="button" key={tooth} className={selectedPeriodontalTooth === tooth ? 'periodontal-tooth selected' : 'periodontal-tooth'} onClick={() => setSelectedPeriodontalTooth(tooth)} disabled={absentTeeth.includes(tooth)}>{absentTeeth.includes(tooth) ? '×' : tooth}</button>)}</div></div>)}</div></article>
+                <article className="panel-card periodontal-entry-card"><div className="panel-title-row"><div><p className="eyebrow">Diente {selectedPeriodontalTooth}</p><h3>Captura por sitio</h3></div><span className="badge">PS / MG / BOP</span></div>
+                  <div className="tooth-level-fields"><label>Movilidad<select value={activeTooth.mobility} onChange={(e) => updatePeriodontalTooth('mobility', e.target.value)}><option>0</option><option>1</option><option>2</option><option>3</option></select></label><label>Furca<select value={activeTooth.furcation} onChange={(e) => updatePeriodontalTooth('furcation', e.target.value)}><option>0</option><option>1</option><option>2</option><option>3</option></select></label><label>Encía adherida (mm)<input inputMode="decimal" value={activeTooth.gingivalWidth} onChange={(e) => updatePeriodontalTooth('gingivalWidth', e.target.value)} /></label><label>Pronóstico<select value={activeTooth.prognosis} onChange={(e) => updatePeriodontalTooth('prognosis', e.target.value)}><option>Bueno</option><option>Dudoso</option><option>Malo</option><option>Imposible</option></select></label><label className="check-label"><input type="checkbox" checked={activeTooth.implant} onChange={(e) => updatePeriodontalTooth('implant', e.target.checked)} /> Implante</label></div>
+                  <div className="site-table"><div className="site-head"><span>Sitio</span><span>PS</span><span>MG</span><span>BOP</span><span>Sup.</span><span>Placa</span></div>{periodontalSiteKeys.map((site) => { const record = activeTooth.sites[site]; return <div className="site-row" key={site}><strong>{site}</strong><input aria-label={`PS ${site}`} inputMode="decimal" placeholder="mm" value={record.probingDepth} onChange={(e) => updatePeriodontalSite(site, 'probingDepth', e.target.value)} /><input aria-label={`MG ${site}`} inputMode="decimal" placeholder="mm" value={record.recession} onChange={(e) => updatePeriodontalSite(site, 'recession', e.target.value)} /><input aria-label={`BOP ${site}`} type="checkbox" checked={record.bleeding} onChange={(e) => updatePeriodontalSite(site, 'bleeding', e.target.checked)} /><input aria-label={`Supuración ${site}`} type="checkbox" checked={record.suppuration} onChange={(e) => updatePeriodontalSite(site, 'suppuration', e.target.checked)} /><input aria-label={`Placa ${site}`} type="checkbox" checked={record.plaque} onChange={(e) => updatePeriodontalSite(site, 'plaque', e.target.checked)} /></div> })}</div>
+                </article>
+              </div>
+
+              <article className="panel-card risk-card"><div className="panel-title-row"><div><p className="eyebrow">Datos necesarios para estadificación y gradación</p><h3>Evaluación radiográfica y modificadores de riesgo</h3></div></div><div className="risk-fields"><label>Pérdida ósea radiográfica (%)<input inputMode="decimal" value={periodontalRisk.boneLoss} onChange={(e) => setPeriodontalRisk({ ...periodontalRisk, boneLoss: e.target.value })} placeholder="Requiere valoración radiográfica" /></label><label>Dientes perdidos por periodontitis<select value={periodontalRisk.toothLoss} onChange={(e) => setPeriodontalRisk({ ...periodontalRisk, toothLoss: e.target.value })}>{[0,1,2,3,4,5,6].map((n) => <option key={n} value={n}>{n}</option>)}</select></label><label>Tabaco<select value={periodontalRisk.smoking} onChange={(e) => setPeriodontalRisk({ ...periodontalRisk, smoking: e.target.value as SmokingCategory })}><option value="unknown">Sin registrar</option><option value="none">No fuma</option><option value="less_than_10_cigarettes_day">&lt; 10 cigarrillos/día</option><option value="10_or_more_cigarettes_day">≥ 10 cigarrillos/día</option></select></label><label>HbA1c (%)<input inputMode="decimal" value={periodontalRisk.hba1c} onChange={(e) => setPeriodontalRisk({ ...periodontalRisk, hba1c: e.target.value })} placeholder="Si aplica" /></label></div></article>
+            </section>
+          })()}
 
           {activeView === 'settings' && (
             <section className="view-section">

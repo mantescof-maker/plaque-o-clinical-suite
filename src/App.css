@@ -782,6 +782,30 @@ button {
   color: #5d7377;
 }
 
+.periodontal-workspace { display: grid; grid-template-columns: minmax(300px, .8fr) minmax(0, 1.4fr); gap: 16px; }
+.periodontal-tooth-map { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.periodontal-quadrant { display: flex; flex-direction: column; gap: 8px; color: #5d7377; font-size: .78rem; }
+.periodontal-quadrant > div { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.periodontal-tooth { border: 1px solid #d5e5e7; border-radius: 9px; background: #fbfefe; color: #244844; padding: 8px 3px; font-weight: 750; }
+.periodontal-tooth.selected { background: #147a8f; color: white; border-color: #147a8f; }
+.periodontal-tooth:disabled { color: #a4afb2; background: #f3f4f4; text-decoration: line-through; }
+.tooth-level-fields, .risk-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.tooth-level-fields label, .risk-fields label { display: flex; flex-direction: column; gap: 5px; color: #526e72; font-size: .8rem; font-weight: 650; }
+.tooth-level-fields input, .tooth-level-fields select, .risk-fields input, .risk-fields select, .site-row input { min-width: 0; box-sizing: border-box; border: 1px solid #d8e5e8; border-radius: 8px; background: #fbfdfd; padding: 8px; color: #18312b; }
+.tooth-level-fields .check-label { flex-direction: row; align-items: center; align-self: end; padding: 8px 0; }
+.site-table { border: 1px solid #e0eaed; border-radius: 12px; overflow: hidden; }
+.site-head, .site-row { display: grid; grid-template-columns: 1.1fr repeat(2, 1fr) repeat(3, .7fr); align-items: center; gap: 6px; padding: 7px 9px; }
+.site-head { background: #eef7f5; color: #41646a; font-size: .72rem; font-weight: 800; }
+.site-row { border-top: 1px solid #edf2f3; }
+.site-row strong { color: #176f76; font-size: .82rem; }
+.site-row input[type='checkbox'] { justify-self: center; width: 17px; height: 17px; padding: 0; accent-color: #168b71; }
+.diagnosis-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.diagnosis-grid > div { padding: 11px; border: 1px solid #dfeaed; border-radius: 11px; background: #f9fcfd; display: flex; flex-direction: column; gap: 4px; }
+.diagnosis-grid span { color: #5d7377; font-size: .78rem; }.diagnosis-grid strong { color: #18312b; font-size: .9rem; }
+.risk-card { background: linear-gradient(135deg, #ffffff 0%, #f5fbf9 100%); }
+@media (max-width: 900px) { .periodontal-workspace { grid-template-columns: 1fr; } .tooth-level-fields, .risk-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .periodontal-tooth-map { grid-template-columns: 1fr; } .tooth-level-fields, .risk-fields, .diagnosis-grid { grid-template-columns: 1fr; } .site-head, .site-row { grid-template-columns: .8fr repeat(2, 1fr) repeat(3, .55fr); gap: 3px; padding: 6px; } .site-row input { padding: 6px 3px; } }
+
 .patient-meta-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

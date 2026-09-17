@@ -5,6 +5,7 @@ import {
   useMemo,
   useState,
   type ErrorInfo,
+  type CSSProperties,
   type FormEvent,
   type ReactNode,
 } from 'react'
@@ -1819,6 +1820,25 @@ function App() {
 
           {activeView === 'periodontogram' && (() => {
             const activeTooth = periodontalTeeth[selectedPeriodontalTooth]
+            const renderSepaArcade = (title: string, numbers: string[], outerSites: PeriodontalSiteKey[], innerSites: PeriodontalSiteKey[], outerLabel: string, innerLabel: string) => (
+              <section className="sepa-arcade" key={title}>
+                <div className="sepa-arcade-heading"><strong>{title}</strong><span>{outerLabel} arriba · {innerLabel} abajo</span></div>
+                <div className="sepa-sheet" style={{ '--sepa-columns': numbers.length } as CSSProperties}>
+                  <div className="sepa-label">IM</div>{numbers.map((number) => <button type="button" key={`im-${number}`} className={`sepa-cell sepa-tooth-select ${selectedPeriodontalTooth === number ? 'active' : ''}`} onClick={() => setSelectedPeriodontalTooth(number)}>{periodontalTeeth[number].implant ? '●' : '·'}</button>)}
+                  <div className="sepa-label">MV</div>{numbers.map((number) => <button type="button" key={`mv-${number}`} className="sepa-cell sepa-tooth-select" onClick={() => setSelectedPeriodontalTooth(number)}>{periodontalTeeth[number].mobility}</button>)}
+                  <div className="sepa-label">PI</div>{numbers.map((number) => <button type="button" key={`pi-${number}`} className="sepa-cell sepa-tooth-select sepa-prognosis" onClick={() => setSelectedPeriodontalTooth(number)}>{periodontalTeeth[number].prognosis.slice(0, 1)}</button>)}
+                  <div className="sepa-label">FU</div>{numbers.map((number) => <button type="button" key={`fu-${number}`} className="sepa-cell sepa-tooth-select" onClick={() => setSelectedPeriodontalTooth(number)}>{periodontalTeeth[number].furcation}</button>)}
+                  <div className="sepa-label">SG</div>{numbers.map((number) => <button type="button" key={`sg-${number}`} className="sepa-cell sepa-tooth-select" onClick={() => setSelectedPeriodontalTooth(number)}>{Object.values(periodontalTeeth[number].sites).filter((site) => site.bleeding).length || '·'}</button>)}
+                  <div className="sepa-label">PL</div>{numbers.map((number) => <button type="button" key={`pl-${number}`} className="sepa-cell sepa-tooth-select" onClick={() => setSelectedPeriodontalTooth(number)}>{Object.values(periodontalTeeth[number].sites).filter((site) => site.plaque).length || '·'}</button>)}
+                  <div className="sepa-label">AE</div>{numbers.map((number) => <button type="button" key={`ae-${number}`} className="sepa-cell sepa-tooth-select" onClick={() => setSelectedPeriodontalTooth(number)}>{periodontalTeeth[number].gingivalWidth || '·'}</button>)}
+                  <div className="sepa-label multi">MG {outerLabel}</div>{numbers.map((number) => <button type="button" key={`mg1-${number}`} className="sepa-cell sepa-triplet sepa-tooth-select" onClick={() => setSelectedPeriodontalTooth(number)}>{outerSites.map((site) => <span key={site}>{periodontalTeeth[number].sites[site].recession || '·'}</span>)}</button>)}
+                  <div className="sepa-label multi">PS {outerLabel}</div>{numbers.map((number) => <button type="button" key={`ps1-${number}`} className="sepa-cell sepa-triplet sepa-tooth-select sepa-depth-values" onClick={() => setSelectedPeriodontalTooth(number)}>{outerSites.map((site) => <span key={site}>{periodontalTeeth[number].sites[site].probingDepth || '·'}</span>)}</button>)}
+                  <div className="sepa-label tooth-row">Diente</div>{numbers.map((number) => <button type="button" key={`tooth-${number}`} className={`sepa-tooth-number ${selectedPeriodontalTooth === number ? 'active' : ''} ${absentTeeth.includes(number) ? 'absent' : ''}`} onClick={() => setSelectedPeriodontalTooth(number)}>{absentTeeth.includes(number) ? '×' : number}</button>)}
+                  <div className="sepa-label multi">PS {innerLabel}</div>{numbers.map((number) => <button type="button" key={`ps2-${number}`} className="sepa-cell sepa-triplet sepa-tooth-select sepa-depth-values" onClick={() => setSelectedPeriodontalTooth(number)}>{innerSites.map((site) => <span key={site}>{periodontalTeeth[number].sites[site].probingDepth || '·'}</span>)}</button>)}
+                  <div className="sepa-label multi">MG {innerLabel}</div>{numbers.map((number) => <button type="button" key={`mg2-${number}`} className="sepa-cell sepa-triplet sepa-tooth-select" onClick={() => setSelectedPeriodontalTooth(number)}>{innerSites.map((site) => <span key={site}>{periodontalTeeth[number].sites[site].recession || '·'}</span>)}</button>)}
+                </div>
+              </section>
+            )
             return <section className="view-section periodontogram-view">
               <article className="control-patient-card compact-header">
                 <div><p className="eyebrow">Registro periodontal · SEPA</p><h3>{selectedPatient.name}</h3><p>Seis sitios por diente. El margen gingival se registra en mm; valor positivo = recesión.</p></div>
@@ -1836,6 +1856,8 @@ function App() {
                 <div className="diagnosis-grid"><div><span>Estadio</span><strong>{periodontalSummary.stage}</strong></div><div><span>Grado</span><strong>{periodontalSummary.grade}</strong></div><div><span>Biofilm en sitios medidos</span><strong>{periodontalSummary.measured ? `${Math.round(periodontalSummary.plaque / periodontalSummary.measured * 100)}%` : '—'}</strong></div></div>
                 <p className="clinical-message">Esta propuesta usa la versión <strong>AAP_EFP_2018</strong>. No sustituye la valoración clínica, radiográfica ni el juicio profesional; una actualización futura conservará la versión utilizada en cada registro.</p>
               </article>
+
+              <article className="panel-card sepa-periodontogram-card"><div className="panel-title-row"><div><p className="eyebrow">Formato de hoja clínica SEPA</p><h3>Periodontograma completo</h3></div><span className="badge muted">Haz clic en un diente para editarlo</span></div><div className="sepa-legend"><span>IM: implante</span><span>MV: movilidad</span><span>PI: pronóstico</span><span>FU: furca</span><span>SG: sitios con sangrado</span><span>PL: sitios con placa</span><span>AE: anchura de encía</span></div>{renderSepaArcade('Arcada superior', toothOrder.slice(0, 16), ['B-M', 'B-C', 'B-D'], ['L-M', 'L-C', 'L-D'], 'Vestibular', 'Palatino')}{renderSepaArcade('Arcada inferior', toothOrder.slice(16), ['L-M', 'L-C', 'L-D'], ['B-M', 'B-C', 'B-D'], 'Lingual', 'Vestibular')}<div className="sepa-totals"><strong>Media PS: {periodontalSummary.average || '—'} mm</strong><strong>Media NIC: pendiente de completar</strong><strong>{periodontalSummary.measured ? `${Math.round(periodontalSummary.plaque / periodontalSummary.measured * 100)}%` : '—'} placa</strong><strong>{periodontalSummary.measured ? `${Math.round(periodontalSummary.bleeding / periodontalSummary.measured * 100)}%` : '—'} sangrado</strong></div></article>
 
               <div className="periodontal-workspace">
                 <article className="panel-card tooth-selector-card"><div className="panel-title-row"><h3>Mapa dental</h3><span className="badge muted">Selecciona un diente</span></div><div className="periodontal-tooth-map">{controlQuadrants.map((quadrant) => <div key={quadrant.title} className="periodontal-quadrant"><span>{quadrant.title}</span><div>{quadrant.teeth.map((tooth) => <button type="button" key={tooth} className={selectedPeriodontalTooth === tooth ? 'periodontal-tooth selected' : 'periodontal-tooth'} onClick={() => setSelectedPeriodontalTooth(tooth)} disabled={absentTeeth.includes(tooth)}>{absentTeeth.includes(tooth) ? '×' : tooth}</button>)}</div></div>)}</div></article>

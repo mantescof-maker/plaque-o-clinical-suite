@@ -1836,7 +1836,8 @@ function App() {
               const tooth = periodontalTeeth[number]
               const position = Number(number[1])
               const anatomy = position <= 2 ? 'incisor' : position === 3 ? 'canine' : position <= 5 ? 'premolar' : 'molar'
-              const transform = orientation === 'upper' ? 'translate(0 56) scale(1 -1)' : undefined
+              const measurementTransform = orientation === 'upper' ? 'translate(0 56) scale(1 -1)' : undefined
+              const anatomyTransform = orientation === 'lower' ? 'translate(0 56) scale(1 -1)' : undefined
               const visualSites = (number.startsWith('1') || number.startsWith('4')) ? [sites[2], sites[1], sites[0]] : sites
               const marginPoints = visualSites.map((site, index) => `${5 + index * 15},${19 + Math.max(Number(tooth.sites[site].recession || 0), -2) * 3}`).join(' ')
               const depthPoints = visualSites.map((site, index) => {
@@ -1844,27 +1845,8 @@ function App() {
                 const depth = Number(tooth.sites[site].probingDepth || 0)
                 return `${5 + index * 15},${19 + Math.min(Math.max(margin + depth, -2), 10) * 3}`
               }).join(' ')
-              const crownPath = anatomy === 'molar'
-                ? 'M3.5 9 C4.5 5 8 4 11 5.8 C13.5 2.4 17 2.5 20 5 C23 2.5 27 2.4 29.5 5.8 C33 4 35.5 5 36.5 9 L34 17.5 C30.5 21.2 25.5 22 20 20.8 C14.5 22 9.5 21.2 6 17.5Z'
-                : anatomy === 'premolar'
-                  ? 'M7 9 C8.5 5 12 3.5 15.2 5.8 C17.2 2.6 22.8 2.6 24.8 5.8 C28 3.5 31.5 5 33 9 L30 17.8 C27 20.5 23.6 21.2 20 20.2 C16.4 21.2 13 20.5 10 17.8Z'
-                  : anatomy === 'canine'
-                    ? 'M9.5 9.5 L20 2.3 L30.5 9.5 L28 17.8 C25.8 20.5 22.8 21.3 20 20.3 C17.2 21.3 14.2 20.5 12 17.8Z'
-                    : 'M8.5 8.5 C11 4.7 15.3 3.5 20 4.5 C24.7 3.5 29 4.7 31.5 8.5 L29 17.8 C26.5 20.5 23.2 21.2 20 20.3 C16.8 21.2 13.5 20.5 11 17.8Z'
-              const rootPath = anatomy === 'molar'
-                ? 'M7.2 17.2 C8.5 22 10.5 23.5 12.2 25 L9.2 49.5 C8.7 54 12.3 55 14.3 51.5 L19.4 31.2 L24.6 51.5 C26.7 55 30.2 54 29.8 49.5 L27.8 25 C29.5 23.5 31.5 22 32.8 17.2Z'
-                : anatomy === 'premolar'
-                  ? 'M10.5 17.4 C12.2 22 14.1 23.5 15.8 25 L13.3 50.2 C13 54.3 16.8 55 18.6 51.5 L20 33.2 L22 51.5 C23.8 55 27.5 54.3 27.2 50.2 L24.2 25 C25.9 23.5 27.8 22 29.5 17.4Z'
-                  : anatomy === 'canine'
-                    ? 'M12 17.5 C15.2 22.2 17.2 23.7 18.1 25.5 L18.4 51 C18.5 55.6 21.5 55.6 21.6 51 L21.9 25.5 C22.8 23.7 24.8 22.2 28 17.5Z'
-                    : 'M11.2 17.5 C14.3 22.2 17.1 23.4 18 25.5 L18.4 50.6 C18.5 54.8 21.5 54.8 21.6 50.6 L22 25.5 C22.9 23.4 25.7 22.2 28.8 17.5Z'
-              const rootDetail = anatomy === 'molar'
-                ? 'M19.4 31.2 L20 21 M12.2 25 L20 21 L27.8 25'
-                : anatomy === 'premolar'
-                  ? 'M20 33.2 L20 21 M15.8 25 L20 21 L24.2 25'
-                  : 'M20 25.5 L20 21'
               const illustrationId = `tooth-${orientation}-${number}`
-              return <button type="button" key={`${orientation}-${sites[0]}-${number}`} className={`sepa-tooth-number sepa-diagram-cell ${selectedPeriodontalTooth === number ? 'active' : ''} ${absentTeeth.includes(number) ? 'absent' : ''} ${tooth.implant ? 'implant' : ''}`} onClick={() => setSelectedPeriodontalTooth(number)}><svg viewBox="0 0 40 56" aria-label={`${tooth.implant ? 'Implante' : 'Diente'} ${number}, ${orientation === 'upper' ? 'arcada superior' : 'arcada inferior'}`}><defs><linearGradient id={`${illustrationId}-enamel`} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#ffffff" /><stop offset=".32" stopColor="#fff7df" /><stop offset=".7" stopColor="#e5c58f" /><stop offset="1" stopColor="#a87a43" /></linearGradient><linearGradient id={`${illustrationId}-root`} x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#a97842" /><stop offset=".28" stopColor="#ecd1a2" /><stop offset=".58" stopColor="#fffaf0" /><stop offset="1" stopColor="#b27c42" /></linearGradient><linearGradient id={`${illustrationId}-implant`} x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#365b66" /><stop offset=".42" stopColor="#f4ffff" /><stop offset=".62" stopColor="#8fb2bd" /><stop offset="1" stopColor="#315763" /></linearGradient></defs><g transform={transform}>{tooth.implant ? <><path className="implant-crown" d="M8.2 5.2 Q20 0.7 31.8 5.2 L29.3 15.2 H10.7Z" /><path className="implant-body" fill={`url(#${illustrationId}-implant)`} d="M12.5 15.8 H27.5 L25.3 51.2 Q20 54.5 14.7 51.2Z" /><path className="implant-thread" d="M13.5 21.5 H26.5 M13.3 27.5 H26.7 M14 33.5 H26 M14.4 39.5 H25.6 M15.2 45.5 H24.8" /></> : <><path className={`sepa-tooth-root anatomy-${anatomy}`} fill={`url(#${illustrationId}-root)`} d={rootPath} /><path className={`sepa-tooth-root-detail anatomy-${anatomy}`} d={rootDetail} /><path className={`sepa-tooth-crown anatomy-${anatomy}`} fill={`url(#${illustrationId}-enamel)`} d={crownPath} /><path className="sepa-tooth-highlight" d="M9 10 C12 7 15 7 17 8" /><path className={`sepa-tooth-groove anatomy-${anatomy}`} d={anatomy === 'molar' ? 'M11 13 Q15 10 20 13 Q25 10 29 13 M20 7 L20 16' : anatomy === 'premolar' ? 'M13 12 Q17 9 20 12 Q23 9 27 12 M20 7 L20 16' : anatomy === 'canine' ? 'M20 6 L20 16' : 'M15 12 Q20 10 25 12'} /></>}<polyline className="sepa-margin-line" points={marginPoints} /><polyline className="sepa-depth-line" points={depthPoints} /></g></svg><span>{absentTeeth.includes(number) ? '×' : number}</span></button>
+              return <button type="button" key={`${orientation}-${sites[0]}-${number}`} className={`sepa-tooth-number sepa-diagram-cell ${selectedPeriodontalTooth === number ? 'active' : ''} ${absentTeeth.includes(number) ? 'absent' : ''} ${tooth.implant ? 'implant' : ''}`} onClick={() => setSelectedPeriodontalTooth(number)}><svg viewBox="0 0 40 56" aria-label={`${tooth.implant ? 'Implante' : 'Diente'} ${number}, ${orientation === 'upper' ? 'arcada superior' : 'arcada inferior'}`}><defs><linearGradient id={`${illustrationId}-implant`} x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#365b66" /><stop offset=".42" stopColor="#f4ffff" /><stop offset=".62" stopColor="#8fb2bd" /><stop offset="1" stopColor="#315763" /></linearGradient></defs><g transform={anatomyTransform}>{tooth.implant ? <><path className="implant-crown" d="M8.2 5.2 Q20 0.7 31.8 5.2 L29.3 15.2 H10.7Z" /><path className="implant-body" fill={`url(#${illustrationId}-implant)`} d="M12.5 15.8 H27.5 L25.3 51.2 Q20 54.5 14.7 51.2Z" /><path className="implant-thread" d="M13.5 21.5 H26.5 M13.3 27.5 H26.7 M14 33.5 H26 M14.4 39.5 H25.6 M15.2 45.5 H24.8" /></> : <image className={`sepa-reference-tooth anatomy-${anatomy}`} href={`/periodontal/${anatomy}-reference.png`} x="2" y="0" width="36" height="56" preserveAspectRatio="xMidYMid meet" />}</g><g transform={measurementTransform}><polyline className="sepa-margin-line" points={marginPoints} /><polyline className="sepa-depth-line" points={depthPoints} /></g></svg><span>{absentTeeth.includes(number) ? '×' : number}</span></button>
             }
             const renderSepaArcade = (title: string, numbers: string[], outerSites: PeriodontalSiteKey[], innerSites: PeriodontalSiteKey[], outerLabel: string, innerLabel: string) => (
               <section className="sepa-arcade" key={title}>

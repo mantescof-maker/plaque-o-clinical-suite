@@ -30,6 +30,9 @@ button {
   grid-template-columns: 280px minmax(0, 1fr);
   background: linear-gradient(135deg, #f6fcf9 0%, #f8fafb 100%);
 }
+.app-shell.periodontogram-layout { grid-template-columns: minmax(0, 1fr); }
+.periodontogram-layout .sidebar { display: none; }
+.periodontogram-layout .main-panel { padding: 16px 20px 28px; }
 
 .sidebar {
   background: linear-gradient(180deg, #0f2430 0%, #15373d 100%);
@@ -809,6 +812,7 @@ button {
 .sepa-direct-entry { padding:2px; }.sepa-direct-entry input { width:100%; min-width:0; box-sizing:border-box; border:0; border-radius:3px; padding:3px 1px; text-align:center; color:#244c4c; background:#fbfdfd; font-size:.7rem; font-weight:700; outline:1px solid transparent; }.sepa-direct-entry input:focus { outline:2px solid #197d76; background:#effaf6; position:relative; z-index:2; }.sepa-direct-entry input.sepa-pathologic { color:#fff; background:#c9443f; }.sepa-direct-entry input::-webkit-inner-spin-button { appearance:none; }
 .sepa-tooth-select.sepa-on { background:#e7f6ef; color:#137259; font-weight:850; }.sepa-tooth-select.sepa-bleeding { background:#fdebe9; color:#b43f38; }.sepa-tooth-select.sepa-suppuration { background:#fff1d8; color:#a16a08; }.sepa-tooth-select.sepa-plaque { background:#e9f2fb; color:#206c9e; }.sepa-ae-input,.sepa-note-input { min-width:0; width:100%; box-sizing:border-box; border:0; border-right:1px solid #e5edef; border-bottom:1px solid #e7eff1; background:#fff; color:#244c4c; padding:4px 2px; text-align:center; font-size:.72rem; outline:1px solid transparent; }.sepa-ae-input:focus,.sepa-note-input:focus { outline:2px solid #197d76; position:relative; z-index:2; }.sepa-ae-input.sepa-pathologic { background:#c9443f; color:#fff; font-weight:800; }.sepa-note-input { text-align:left; padding-left:5px; }
 .periodontal-proposal-hidden { display:none; }.sepa-quadrants { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }.sepa-quadrants .sepa-arcade { min-width:0; margin:0; }.sepa-quadrants .sepa-sheet { grid-template-columns:58px repeat(var(--sepa-columns),minmax(58px,1fr)); }.sepa-quadrants .sepa-arcade-heading { font-size:.74rem; }.sepa-quadrants .sepa-label { padding:4px 5px; font-size:.67rem; }.sepa-quadrants .sepa-tooth-number { min-height:64px; }.sepa-quadrants .sepa-totals { min-width:0; }
+.sepa-paper { min-width:1180px; display:flex; flex-direction:column; gap:14px; padding:12px; border-radius:12px; background:#f5f6f3; }.sepa-paper .sepa-arcade { min-width:0; margin:0; border-color:#a9b4b2; box-shadow:0 1px 0 rgba(20,45,45,.06); }.sepa-paper .sepa-arcade-heading { background:#ecf0ed; color:#314443; border-bottom:1px solid #a9b4b2; font-weight:800; }.sepa-paper .sepa-sheet { grid-template-columns:72px repeat(var(--sepa-columns),minmax(64px,1fr)); }.sepa-paper .sepa-label { color:#344442; background:#f5f7f5; }.sepa-paper .sepa-tooth-number { min-height:84px; background:linear-gradient(180deg,#fdfefe,#eff3f1); }.sepa-paper .sepa-tooth-number svg { width:46px; height:56px; }.sepa-paper .sepa-triplet { font-size:.74rem; }.sepa-paper .sepa-direct-entry input { min-height:22px; font-size:.76rem; }
 @media (max-width: 1180px) { .sepa-quadrants { grid-template-columns:1fr; }.sepa-quadrants .sepa-sheet { grid-template-columns:64px repeat(var(--sepa-columns),minmax(62px,1fr)); } }
 .diagnosis-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .diagnosis-grid > div { padding: 11px; border: 1px solid #dfeaed; border-radius: 11px; background: #f9fcfd; display: flex; flex-direction: column; gap: 4px; }

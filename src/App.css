@@ -794,6 +794,7 @@ button {
 .periodontal-tooth:disabled { color: #a4afb2; background: #f3f4f4; text-decoration: line-through; }
 .tooth-level-fields, .risk-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .tooth-level-fields label, .risk-fields label { display: flex; flex-direction: column; gap: 5px; color: #526e72; font-size: .8rem; font-weight: 650; }
+.risk-fields small { color:#627a7e; font-size:.72rem; line-height:1.35; font-weight:500; }
 .tooth-level-fields input, .tooth-level-fields select, .risk-fields input, .risk-fields select, .site-row input { min-width: 0; box-sizing: border-box; border: 1px solid #d8e5e8; border-radius: 8px; background: #fbfdfd; padding: 8px; color: #18312b; }
 .tooth-level-fields .check-label { flex-direction: row; align-items: center; align-self: end; padding: 8px 0; }
 .site-table { border: 1px solid #e0eaed; border-radius: 12px; overflow: hidden; }

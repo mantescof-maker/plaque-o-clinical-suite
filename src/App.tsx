@@ -1837,8 +1837,12 @@ function App() {
               const position = Number(number[1])
               const anatomy = position <= 2 ? 'incisor' : position === 3 ? 'canine' : position <= 5 ? 'premolar' : 'molar'
               const transform = orientation === 'upper' ? 'rotate(180 20 28)' : undefined
-              const depthPoints = sites.map((site, index) => `${5 + index * 15},${19 + Math.min(Number(tooth.sites[site].probingDepth || 0), 8) * 3}`).join(' ')
               const marginPoints = sites.map((site, index) => `${5 + index * 15},${19 + Math.max(Number(tooth.sites[site].recession || 0), -2) * 3}`).join(' ')
+              const depthPoints = sites.map((site, index) => {
+                const margin = Number(tooth.sites[site].recession || 0)
+                const depth = Number(tooth.sites[site].probingDepth || 0)
+                return `${5 + index * 15},${19 + Math.min(Math.max(margin + depth, -2), 10) * 3}`
+              }).join(' ')
               const crownPath = anatomy === 'molar'
                 ? 'M4 8 Q7 3 11 6 Q15 1 20 5 Q25 1 29 6 Q34 3 36 8 L34 18 Q29 22 20 21 Q11 22 6 18Z'
                 : anatomy === 'premolar'

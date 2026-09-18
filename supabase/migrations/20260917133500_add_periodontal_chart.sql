@@ -1,0 +1,14 @@
+create table public.periodontal_exams (id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade, patient_id uuid not null references public.patients(id) on delete cascade, exam_date date not null default current_date, notes text, created_at timestamptz not null default now());
+create index periodontal_exams_patient_id_idx on public.periodontal_exams(patient_id, exam_date desc);
+create table public.periodontal_sites (id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade, patient_id uuid not null references public.patients(id) on delete cascade, exam_id uuid not null references public.periodontal_exams(id) on delete cascade, tooth text not null, site text not null check (site in ('B-M','B-C','B-D','L-M','L-C','L-D')), probing_depth numeric(4,1) not null check (probing_depth >= 0 and probing_depth <= 20), recession numeric(4,1) not null default 0 check (recession >= -20 and recession <= 20), bleeding boolean not null default false, suppuration boolean not null default false, created_at timestamptz not null default now(), unique(exam_id, tooth, site));
+create index periodontal_sites_exam_id_idx on public.periodontal_sites(exam_id);
+create table public.periodontal_teeth (id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade, patient_id uuid not null references public.patients(id) on delete cascade, exam_id uuid not null references public.periodontal_exams(id) on delete cascade, tooth text not null, mobility smallint not null default 0 check (mobility between 0 and 3), furcation smallint not null default 0 check (furcation between 0 and 3), created_at timestamptz not null default now(), unique(exam_id, tooth));
+create index periodontal_teeth_exam_id_idx on public.periodontal_teeth(exam_id);
+alter table public.periodontal_exams enable row level security;
+alter table public.periodontal_sites enable row level security;
+alter table public.periodontal_teeth enable row level security;
+revoke all on public.periodontal_exams, public.periodontal_sites, public.periodontal_teeth from anon;
+grant select, insert, update, delete on public.periodontal_exams, public.periodontal_sites, public.periodontal_teeth to authenticated;
+create policy "Users manage own periodontal exams" on public.periodontal_exams for all to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+create policy "Users manage own periodontal sites" on public.periodontal_sites for all to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+create policy "Users manage own periodontal teeth" on public.periodontal_teeth for all to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);

@@ -1836,9 +1836,10 @@ function App() {
               const tooth = periodontalTeeth[number]
               const position = Number(number[1])
               const anatomy = position <= 2 ? 'incisor' : position === 3 ? 'canine' : position <= 5 ? 'premolar' : 'molar'
-              const transform = orientation === 'upper' ? 'rotate(180 20 28)' : undefined
-              const marginPoints = sites.map((site, index) => `${5 + index * 15},${19 + Math.max(Number(tooth.sites[site].recession || 0), -2) * 3}`).join(' ')
-              const depthPoints = sites.map((site, index) => {
+              const transform = orientation === 'upper' ? 'translate(0 56) scale(1 -1)' : undefined
+              const visualSites = (number.startsWith('1') || number.startsWith('4')) ? [sites[2], sites[1], sites[0]] : sites
+              const marginPoints = visualSites.map((site, index) => `${5 + index * 15},${19 + Math.max(Number(tooth.sites[site].recession || 0), -2) * 3}`).join(' ')
+              const depthPoints = visualSites.map((site, index) => {
                 const margin = Number(tooth.sites[site].recession || 0)
                 const depth = Number(tooth.sites[site].probingDepth || 0)
                 return `${5 + index * 15},${19 + Math.min(Math.max(margin + depth, -2), 10) * 3}`
